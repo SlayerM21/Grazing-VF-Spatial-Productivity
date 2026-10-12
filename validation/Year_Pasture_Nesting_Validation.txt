@@ -1,0 +1,22 @@
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+Parsed 206 R chunks from afri-nesting-before.Rmd 
+Parsed 206 R chunks from AFRI_CHAPTER_2_Optimized.Rmd 
+PASS: all 206 revised R chunks parse
+PASS: all 56 catalog entries preserved; only requested random terms changed
+PASS: synthetic nested model fitted with 18 pasture-year groups and inference
+PASS: reuse audit accepts nested aliases and rejects old Pasture-only fits
+Warning message:
+the ‘nobars’ function has moved to the reformulas package. Please update your imports, or ask an upstream package maintainer to do so. 
+PASS: exported random-structure QC recognizes the nested fit
+
+Study-data models and full knit not run: original datasets absent. Prior validation records retain their historical revision scope.

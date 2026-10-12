@@ -2,20 +2,20 @@
   "source_file": "AFRI_CHAPTER_2_Master_Code_Year_Random.Rmd",
   "source_sha256": "80d420e290269268841b0348a8c53a2c1292d96461e54e08763a8161681f11cf",
   "revised_file": "AFRI_CHAPTER_2_Optimized.Rmd",
-  "revised_sha256": "71a7f555bd02ee1c2497412eaa5af9fa6113faaea51d63c40f1e0af3d7696b1d",
+  "revised_sha256": "264d578ff42653690e8e788e7e7ba33a00bcbb7c7e60b11e18bab1d4c7eb9134",
   "source_lines": 33602,
-  "revised_lines": 21610,
+  "revised_lines": 21613,
   "audit_rows": 191,
   "response_specifications": 44,
   "study_execution": "Not run: original HMM, BW, GreenFeed and GIS inputs unavailable",
   "r_chunks_parsed": 206,
-  "requested_model_structure": "Random Year and physical Pasture only; period fixed effects TRT*SR+Period (Global GreenFeed TRT*SR+RotationPeriod); baseline TRT*SR; ANCOVA retains IBW",
+  "requested_model_structure": "Random Year and Year:Pasture (Year:Pasture_ID alias); fixed effects unchanged",
   "global_greenfeed_name": "Global GreenFeed",
   "global_greenfeed_models": 2,
   "complete_model_catalog_entries": 56,
   "two_scale_output_directory": "05_Two_Scale_Analysis_maps",
   "period_interactions": "None: no TRT:Period, SR:Period or TRT:SR:Period terms; TRT:SR retained",
-  "current_formula_validation": "See validation/Outside_RGP_Removal_Validation.txt for current removal checks; earlier validation records describe their original revision.",
+  "current_formula_validation": "See validation/Year_Pasture_Nesting_Validation.txt; previous validation records retain historical scope",
   "current_model_formula_checks": 61,
   "word_model_catalog": "AFRI_Variables_Models_and_Datasets.docx (56 model catalog entries; outside-RGP response rows removed)",
   "two_scale_model_export_correction": {
@@ -158,9 +158,9 @@
     "stale_result_filter": "Reporting copies exclude response keys absent from the current registry; original environment objects are unchanged"
   },
   "prior_additive_statistical_synthetic_assertions": 59,
-  "word_document_sha256": "619ea6b8c1e483dc4d8f4fdcfcb72739823e0d9a1a4f8c0d9bf4a93f2bef96b4",
+  "word_document_sha256": "e5a10420e690ca54a34f3849f75ee7b1f0e8629683e51b2cd95979f2d9d47390",
   "word_document_validation": {
-    "bytes": 29020,
+    "bytes": 29021,
     "model_entries": 56,
     "tables": 10,
     "descriptive_rows": 6,
@@ -195,5 +195,11 @@
     "scope": "Removed period outside-RGP active-area calculations, aliases, response specification, label, and catalog/export records",
     "study_execution": "Not run: original research inputs absent",
     "validation": "206 chunks parsed; 44 retained response specifications unchanged; stale reporting rows filtered; catalogs and Word absence checked; ZIP contents synchronized"
+  },
+  "year_pasture_nesting": {
+    "structure": "(1 | Year) + (1 | Year:Pasture)",
+    "scope": "All retained and source models, including Pasture_ID aliases; fixed effects unchanged",
+    "study_execution": "Not run: original research inputs absent",
+    "validation": "206 chunks parsed; all 56 catalog formulas match the requested substitution; synthetic nesting/inference, stale-fit rejection and exported structure QC passed"
   }
 }

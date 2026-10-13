@@ -17,7 +17,7 @@ Global GreenFeed contains one Year-random model for CH4 and one for CO2. The sep
 
 Unique two-scale outputs use `Chapter_2_Results/05_Two_Scale_Analysis_maps/`, with numbered subfolders for tables, models, figures, maps, and spatial datasets.
 
-P, A, and Q period models use `TRT * SR + Period`; Global GreenFeed uses `TRT * SR + RotationPeriod`. All retain random Year and Year:Pasture intercepts. Treatment × stocking rate remains; period interactions are removed. Baseline S and the final-weight ANCOVA C remain unchanged. The protected HMM/GPS specifications are preserved.
+P, A, and Q period models use `TRT * SR + Period`; Global GreenFeed uses `TRT * SR + RotationPeriod`. All retain random Year and physical Pasture intercepts. Treatment × stocking rate remains; period interactions are removed. Baseline S and the final-weight ANCOVA C remain unchanged. The protected HMM/GPS specifications are preserved.
 
 When applying the additive-period model specifications, start a fresh R session and rerun the analysis so its tables use newly fitted objects.
 
@@ -30,5 +30,3 @@ The final three-grid map export fix is also included in the main Rmd. It saves t
 All 206 R chunks parsed, and targeted synthetic checks passed. Original research input datasets are not included; study-data model execution, research exports, and a full knit remain unverified. See the report for dependencies, input paths, remaining model limitations, and the precise validation scope.
 
 The active-area-outside-assigned-RGP response, its hectare/square-meter calculations and aliases, and its statistical model have been removed. The period model catalog now contains 44 reporting specifications (56 total catalog entries). Rerun in a fresh R session; previously exported files are not deleted.
-
-The current random structure is `(1 | Year) + (1 | Year:Pasture)` (or `Year:Pasture_ID` where that alias is used). Restart R and rerun all source model chunks before rendering; older fits must not be reused. Fixed effects are unchanged.

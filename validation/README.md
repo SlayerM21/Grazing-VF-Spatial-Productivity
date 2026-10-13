@@ -1,5 +1,3 @@
-Current Year:Pasture nesting checks are in Year_Pasture_Nesting_Validation.txt. Older evidence retains its original model/revision scope.
-
 Current outside-RGP area removal checks are in Outside_RGP_Removal_Validation.txt. They validate 206 parsed chunks, unchanged retained specifications, publication filtering and catalog consistency. Earlier records below retain their original revision scope.
 
 # Validation evidence

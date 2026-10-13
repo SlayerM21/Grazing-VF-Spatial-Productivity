@@ -59,13 +59,13 @@ exploratory-inference limitation. Significant Shapiro–Wilk tests and singular
 fits are reported alongside visual and convergence checks; neither automatically
 changes a model or removes its experimental grouping factors.
 
-The latest requested specifications use random Year and Year:Pasture
+The latest requested specifications use random Year and physical Pasture
 intercepts for both season and period responses. Period models retain TRT × SR
 and add Period as a main effect: `TRT * SR + Period`. Global GreenFeed uses
-`TRT * SR + RotationPeriod` with random Year and Year:Pasture. No management-by-period
-interaction or animal intercept is fitted.
+`TRT * SR + RotationPeriod` with random Year and Pasture. No management-by-period
+interaction, additional pasture-year intercept, or animal intercept is fitted.
 Management differences are assumed constant across periods; correlation within
-repeated units beyond Year/Year:Pasture clustering remains a stated limitation. The
+repeated units beyond Year/Pasture clustering remains a stated limitation. The
 Global GreenFeed F specification matches its primary model, so it reuses that fit.
 The protected baseline models and initial-weight-adjusted final-weight ANCOVA
 retain their previous formulas.
@@ -731,7 +731,7 @@ par(mfrow = c(1, 1))
 mod.Monthly_DDT_filtered <- lme4::lmer(
   mean_DDT_day ~ TRT * SR +
     (1 | Year) +
-    (1 | Year:Pasture),
+    (1 | Pasture),
   data = Monthly_DDT_filtered,
   REML = FALSE
 )
@@ -1236,7 +1236,7 @@ Grazing_model_data <- df.Grazing_monthly_filtered %>%
 mod.Monthly_Grazing <- lme4::lmer(
   mean_hours ~ TRT * SR +
     (1 | Year) +
-    (1 | Year:Pasture),
+    (1 | Pasture),
   data = Grazing_model_data,
   REML = FALSE
 )
@@ -1280,7 +1280,7 @@ Resting_model_data <- df.Resting_monthly_filtered %>%
 mod.Monthly_Resting <- lme4::lmer(
   mean_hours ~ TRT * SR +
     (1 | Year) +
-    (1 | Year:Pasture),
+    (1 | Pasture),
   data = Resting_model_data,
   REML = FALSE
 )
@@ -1325,7 +1325,7 @@ Traveling_model_data <- df.Traveling_monthly_filtered %>%
 mod.Monthly_Traveling <- lme4::lmer(
   mean_hours ~ TRT * SR +
     (1 | Year) +
-    (1 | Year:Pasture),
+    (1 | Pasture),
   data = Traveling_model_data,
   REML = FALSE
 )
@@ -9412,11 +9412,12 @@ model_vars <- c(
 )
 
 # A whole-interval response is observed once per animal-year; no animal
-# intercept is estimable or needed for repetition. Retain Year and Year:Pasture; neither creates pasture replication.
+# intercept is estimable or needed for repetition. Preserve Year and persistent
+# Pasture as in the reference implementation; neither creates pasture replication.
 contrasts(adg_model_data$TRT) <- contr.sum(nlevels(adg_model_data$TRT))
 contrasts(adg_model_data$SR) <- contr.sum(nlevels(adg_model_data$SR))
 smooth_adg_model <- afri_fit_lmm(
-  Smooth_Period_ADG ~ TRT * SR + (1 | Year) + (1 | Year:Pasture),
+  Smooth_Period_ADG ~ TRT * SR + (1 | Year) + (1 | Pasture),
   data = adg_model_data,
   question_id = "table2_adg__Smooth_Period_ADG",
   REML = TRUE
@@ -9485,7 +9486,7 @@ The principal spline-analysis objects are:
 - `smooth_adg_model_anova` and `smooth_adg_anova`: the mixed-effects model and Type III fixed-effect tests;
 - `smooth_adg_emmeans`, `tukey_trt_within_sr`, and `tukey_sr_within_trt`: estimated marginal means and Tukey-adjusted comparisons.
 
-For formal statistical inference, `Smooth_Period_ADG` is analyzed as one animal-level whole-interval response per animal-year. Different steers were used each year. The model recognizes pasture as the treatment-level experimental unit and includes random intercepts for Year and Year:Pasture. Daily spline predictions or derivatives are not analyzed as independent treatment replicates. Because only three years were observed, the Year variance component should be interpreted cautiously.
+For formal statistical inference, `Smooth_Period_ADG` is analyzed as one animal-level whole-interval response per animal-year. Different steers were used each year. The model recognizes pasture as the treatment-level experimental unit and includes random intercepts for Year and persistent physical Pasture; Pasture_Year is not fitted as a random intercept. Daily spline predictions or derivatives are not analyzed as independent treatment replicates. Because only three years were observed, the Year variance component should be interpreted cautiously.
 
 ## 5. Spatial Production Efficiency: Gain per Area Grazed
 
@@ -10878,10 +10879,10 @@ gain_map
 The experimental unit is the pasture. The all-pasture and inside-assigned-RGP
 grid scopes each have one pasture × year × RGP analysis. Whole-season area
 has a single model of cells pooled across the full season. The RGP fixed effects are treatment × stocking rate × RGP; the
-seasonal fixed effects are treatment × stocking rate. Both have Year and
-Year:Pasture random intercepts, following the user-requested specifications.
-Within-season serial residual correlation
-beyond Year/Year:Pasture clustering remains a model limitation. The all-pasture seasonal
+seasonal fixed effects are treatment × stocking rate. Both have pasture and
+year random intercepts, following the user-requested specifications. The RGP
+fit has no additional pasture-year intercept; within-season residual correlation
+beyond Year/Pasture clustering remains a model limitation. The all-pasture seasonal
 grid uses every observed grazing fix in the season window and counts a cell
 once. The whole-season response is calculated directly from pooled GPS cells, never
 by adding period areas or substituting an inside-RGP seasonal denominator.
@@ -11504,9 +11505,9 @@ print(
 )
 
 # Three authoritative Gaussian LMMs. Period models use TRT * SR plus an
-# additive RGP effect and Year/Year:Pasture random intercepts. Seasonal
+# additive RGP effect and Year/physical Pasture random intercepts. Seasonal
 # models use TRT * SR and the same grouping factors. Keep required
-# Year/Year:Pasture terms even when variance is small or the fit is singular.
+# Year/Pasture terms even when variance is small or the fit is singular.
 pasture_design <- pasture_use_RGP %>%
   dplyr::distinct(Pasture_ID, TRT, SR) %>% dplyr::arrange(TRT, SR, Pasture_ID)
 pasture_design_replication <- pasture_design %>% dplyr::count(TRT, SR, name = "N_pastures")
@@ -11588,14 +11589,14 @@ bw_fit_area_model <- function(data, formula, model_name, scale_name) {
 pasture_use_models <- list(
   ALL_PASTURE_GRAZING__RGP = bw_fit_area_model(
     dplyr::filter(pasture_use_RGP, Grid_Map == "ALL_PASTURE_GRAZING"),
-    Active_ha ~ TRT * SR + RGP + (1 | Year) + (1 | Year:Pasture_ID),
+    Active_ha ~ TRT * SR + RGP + (1 | Year) + (1 | Pasture_ID),
     "ALL_PASTURE_GRAZING__RGP", "RGP"),
   INSIDE_RGP_GRAZING__RGP = bw_fit_area_model(
     dplyr::filter(pasture_use_RGP, Grid_Map == "INSIDE_RGP_GRAZING"),
-    Active_ha ~ TRT * SR + RGP + (1 | Year) + (1 | Year:Pasture_ID),
+    Active_ha ~ TRT * SR + RGP + (1 | Year) + (1 | Pasture_ID),
     "INSIDE_RGP_GRAZING__RGP", "RGP"),
   WHOLE_SEASON_GRAZING__Season = bw_fit_area_model(pasture_use_season,
-    Active_ha ~ TRT * SR + (1 | Year) + (1 | Year:Pasture_ID),
+    Active_ha ~ TRT * SR + (1 | Year) + (1 | Pasture_ID),
     "WHOLE_SEASON_GRAZING__Season", "Season")
 )
 pasture_use_model_audit <- dplyr::bind_rows(lapply(pasture_use_models, `[[`, "audit"))
@@ -11705,7 +11706,7 @@ Use the following hierarchy when interpreting the production and spatial results
    subdivisions. They constrain the HMM grid and provide map context, but their
    total polygon hectares are not used as the active-area denominator.
 8. **Recognize schedule gaps.** Dates outside the supplied rotation periods are listed in `uncovered_schedule_dates` and are excluded from RGP-specific active-area productivity.
-9. **Use the requested models with their stated limits.** Period models include treatment × stocking rate × period and random Year/Year:Pasture intercepts. Additional serial or within-animal residual correlation is not explicitly modeled under the requested specification; neither repeated measurements nor more animals can replace independent pasture replication.
+9. **Use the requested models with their stated limits.** Period models include treatment × stocking rate × period and random Year/Pasture intercepts. Additional correlation within pasture-year or animal is not explicitly modeled under the requested specification; neither repeated measurements nor more animals can replace independent pasture replication.
 
 ### 5.11 Spatial-Analysis Outputs to Retain
 
@@ -14280,14 +14281,16 @@ When reviewing the outputs, prioritize the following questions:
 The descriptive pasture-period models below use equal-weight means of contributing steer means. Sampling adequacy is audited in the final two-scale section of this report; the qualified steer-level repeated-measures models must await a supported period inclusion rule. Pasture is the experimental unit,
 rotation period is repeated within pasture-year, and year is fitted as a random
 intercept. At the user's request, each gas has one authoritative Gaussian model:
-`gas ~ TRT * SR + RotationPeriod + (1 | Year) + (1 | Year:Pasture)`.
+`gas ~ TRT * SR + RotationPeriod + (1 | Year) + (1 | Pasture)`.
 
 The primary model includes treatment, stocking rate, their interaction, and an
 additive rotation-period effect. It assumes the same period effect across
 management combinations; treatment-by-period and stocking-rate-by-period
-interactions are not fitted or tested. Year and Year:Pasture random intercepts
-model correlation shared within years and within each pasture-year. No residual
-temporal correlation is fitted. Serial dependence may remain;
+interactions are not fitted or tested. Only year and pasture random intercepts
+are included. These model
+correlation shared within years and within pastures; no additional pasture-year
+intercept or residual temporal correlation is fitted. This specified covariance
+structure may leave within-pasture-year dependence inadequately represented;
 residual checks and the experimental-unit limitations must inform interpretation.
 The pasture-period means are intentionally unweighted; visit totals are reported
 as sampling diagnostics and do not create additional experimental replication.
@@ -14421,11 +14424,11 @@ pasture-period means. No visit-level or animal-level row enters the ANOVA.
 gf_rotation_models <- list(
   CH4_primary = afri_fit_lmm(
     CH4_g_d ~ TRT * SR + RotationPeriod + (1 | Year) +
-      (1 | Year:Pasture),
+      (1 | Pasture),
     ch4_rotation_model_data, "gf_global_period_CH4", REML = TRUE),
   CO2_primary = afri_fit_lmm(
     CO2_g_d ~ TRT * SR + RotationPeriod + (1 | Year) +
-      (1 | Year:Pasture),
+      (1 | Pasture),
     co2_rotation_model_data, "gf_global_period_CO2", REML = TRUE)
 )
 ch4_rotation_year_random_model <- gf_rotation_models$CH4_primary
@@ -14488,7 +14491,7 @@ p_ch4_rotation_ggplot <- ggplot(ch4_rotation_emmeans_df,
   geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL),
                 position = position_dodge(width = 0.8), width = 0.2) +
   facet_wrap(~ SR) + labs(title = "Estimated CH4 emissions by RGP",
-    subtitle = "Global pasture-period means; additive period, Year/Year:Pasture Gaussian LMM",
+    subtitle = "Global pasture-period means; additive period, Year/Pasture Gaussian LMM",
     x = "RGP", y = "CH4 emission (g/day)", fill = "Treatment") + theme_bw()
 print(p_ch4_rotation_ggplot)
 ```
@@ -14530,7 +14533,7 @@ p_co2_rotation_ggplot <- ggplot2::ggplot(
     title = "Estimated CO2 emissions by RGP",
     subtitle = paste(
       "Global pasture-period means;",
-      "additive period, Year/Year:Pasture mixed model"
+      "additive period, Year/Pasture mixed model"
     ),
     x = "RGP",
     y = "CO2 emission (g/day)",
@@ -15088,10 +15091,10 @@ bw_season_model_data <- bw_season %>%
 # The within-one-calendar-day endpoints differ from the later first/last
 # available chute-day summaries. Keep this unique observed-endpoint question.
 bw_season_adg_model <- fit_conditional_question(
-  Seasonal_ADG ~ TRT * SR + (1 | Year) + (1 | Year:Pasture_ID),
+  Seasonal_ADG ~ TRT * SR + (1 | Year) + (1 | Pasture_ID),
   bw_season_model_data, "observed_contiguous_endpoint_season_ADG")
 bw_season_ancova <- fit_conditional_question(
-  FBW ~ IBW + TRT * SR + (1 | Year) + (1 | Year:Pasture_ID),
+  FBW ~ IBW + TRT * SR + (1 | Year) + (1 | Pasture_ID),
   bw_season_model_data, "observed_contiguous_endpoint_FBW_ANCOVA")
 # Period_ADG is reused unchanged as RGP_Smooth_ADG_kg_day in Section 9.10.
 # Its single authoritative animal-period LMM is fitted there, with all
@@ -15110,7 +15113,7 @@ if (nrow(gf_period_qualified)) {
       return(NULL)
     }
     f <- stats::as.formula(paste(response,
-      "~ TRT * SR + Period + (1 | Year) + (1 | Year:Pasture)"))
+      "~ TRT * SR + Period + (1 | Year) + (1 | Pasture)"))
     fit_conditional_question(f, d, paste0("qualified_RGP_", response))
   }
   ch4_period_model <- fit_gas("CH4_g_d")
@@ -16730,7 +16733,7 @@ synchronized-window sensitivity is fitted only when the matching-window rule
 excludes otherwise available gain observations. Unique percent-use
 models use treatment × stocking rate plus additive RGP at the period scale and
 treatment × stocking rate for the pooled seasonal grid. Period models use the requested
-Year and Year:Pasture random intercepts. The percentage of each
+Year and Pasture random intercepts. The percentage of each
 pasture observed grazed is modeled separately to compare pastures of
 different sizes. The seasonal endpoint sensitivity uses the independently pooled whole-season grid. A model with six unique pastures cannot establish treatment
 replication, regardless of the number of repeated years or periods.
@@ -16797,8 +16800,8 @@ for (scale_name in names(model_outcomes)) {
       if (scale_name == "RGP") d <- d %>% dplyr::mutate(
         RGP = factor(RGP, levels = paste0("RGP", 1:5)))
       rhs <- if (scale_name == "RGP")
-        "TRT * SR + RGP + (1 | Year) + (1 | Year:Pasture_ID)"
-        else "TRT * SR + (1 | Year:Pasture_ID) + (1 | Year)"
+        "TRT * SR + RGP + (1 | Year) + (1 | Pasture_ID)"
+        else "TRT * SR + (1 | Pasture_ID) + (1 | Year)"
       fitted_model <- NULL
       status <- "Ready"
       if (nrow(d) < 1L || dplyr::n_distinct(d$Year) < 2L ||
@@ -19880,12 +19883,12 @@ management P-values and management grouping letters are withheld from confirmato
 reporting; available raw model-based tests remain explicitly exploratory and may be
 shown with that limitation in the publication tables.
 
-All responses use the requested Year and Year:Pasture random intercepts.
+All responses use the requested Year and physical Pasture random intercepts.
 Period responses include `TRT * SR + Period` as fixed effects; whole-season and
-preserved monthly reference responses retain `TRT * SR`. Pasture is clustered within year; no
-animal random intercept is included. Pasture-year and animal-year identifiers
-remain available for observation keys and sample-count audits. These requested
-models may leave additional within-animal or serial correlation
+preserved monthly reference responses retain `TRT * SR`. No additional pasture-year
+or animal random intercept is included. Pasture-year and animal-year identifiers
+remain available for observation keys and sample-count audits only. These requested
+models may leave additional within-animal, pasture-year, or serial correlation
 unmodeled; the publication and model documentation retain that limitation. Grouping
 factors are not removed because of a singular fit. The three observed years give
 limited precision for year variance. The protected monthly reference models and
@@ -20166,10 +20169,10 @@ analysis_cell_replication
 Incomplete rows are filtered for the variables required by that response only. The
 specified random effects are retained even when their variances reach zero. A model
 that lacks the observations needed for its design is marked unavailable; it is not
-replaced by an unclustered regression. The requested Year/Year:Pasture intercepts account
-for those shared groups, including pasture within year. No animal intercept or
-AR(1) residual process is modeled. Additional within-animal correlation and
-residual time patterns require scientific review.
+replaced by an unclustered regression. The requested Year/Pasture intercepts account
+for those shared groups, but no animal intercept, pasture-year intercept, or AR(1)
+residual process is modeled. Additional within-animal and within-pasture-year
+correlation and residual time patterns require scientific review.
 
 ```{r statistical-response-models, message=FALSE, warning=FALSE}
 afri_prepare_model_data <- function(data, response, scale, unit, subject_col = NULL) {
@@ -20190,7 +20193,7 @@ afri_prepare_model_data <- function(data, response, scale, unit, subject_col = N
   d <- droplevels(d[keep, , drop = FALSE])
   if (!nrow(d)) stop(response, ": no complete finite observations remain.")
   if (nlevels(d$TRT) != 2L || nlevels(d$SR) != 3L) stop(response, ": incomplete factorial levels; model not silently simplified.")
-  if (nlevels(d$Year) < 2L || nlevels(d$Pasture) < 2L) stop(response, ": required Year/Year:Pasture grouping is not estimable.")
+  if (nlevels(d$Year) < 2L || nlevels(d$Pasture) < 2L) stop(response, ": required Year/Pasture grouping is not estimable.")
   d$Pasture_Year <- interaction(d$Pasture, d$Year, drop = TRUE, lex.order = TRUE)
   if (unit == "animal") {
     d$Animal_Year_ID <- interaction(d$Year, d$Pasture, d[[subject_col]], drop = TRUE, lex.order = TRUE)
@@ -20263,14 +20266,14 @@ afri_fit_one_response <- function(spec_row, fits) {
     table = spec_row$Table[[1L]], scale = scale, unit = unit,
     distribution = "Gaussian", link = "identity", engine = "lme4::lmer / lmerTest",
     source = "new retained model", export_owner = "06_Statistical_Analysis",
-    correlation_selection = "Requested Year/Year:Pasture-only Gaussian LMM; no covariance/family selection.",
+    correlation_selection = "Requested Year/Pasture-only Gaussian LMM; no covariance/family selection.",
     correlation_limitation = if (scale == "period" && unit == "animal") {
-      "Requested Year/Year:Pasture intercepts include pasture within year but omit animal intercepts; additional within-animal or serial correlation may remain."
+      "Requested Year/Pasture intercepts omit animal and pasture-year intercepts; additional within-animal, pasture-year, or serial correlation may remain."
     } else if (scale == "period") {
-      "Requested Year/Year:Pasture intercepts include pasture within year but omit serial residual covariance; serial correlation may remain."
+      "Requested Year/Pasture intercepts omit a pasture-year intercept and serial residual covariance; additional repeated pasture-year correlation may remain."
     } else if (key == "table1") {
-      "Preserved monthly reference Year/Year:Pasture model omits an animal intercept; additional within-animal monthly correlation may remain."
-    } else "Requested Year/Year:Pasture intercepts; the small number of observed years limits year-variance precision.")
+      "Preserved monthly reference Year/Pasture model omits an animal intercept; additional within-animal monthly correlation may remain."
+    } else "Requested Year/Pasture intercepts; the small number of observed years limits year-variance precision.")
   if (key == "table1") {
     # These are the published reference objects: preserve their data/models/results.
     m <- statistical_reference_models[[response]]
@@ -20298,11 +20301,11 @@ afri_fit_one_response <- function(spec_row, fits) {
     fit$inference <- list(emmeans = result$emm_posthoc, cld = result$emm_posthoc,
       anova = result$anova, emm = statistical_reference_emm_objects[[response]],
       pairs = data.frame(), df_method = "Preserved reference tests; see test source")
-    fit$repeated_structure <- "(1 | Year) + (1 | Year:Pasture)"
+    fit$repeated_structure <- "(1 | Year) + (1 | Pasture)"
   } else {
     data <- afri_prepare_model_data(analysis_datasets[[key]], response, scale, unit, subject)
     fixed <- if (scale == "period") "TRT * SR + Period" else "TRT * SR"
-    random <- "(1 | Year) + (1 | Year:Pasture)"
+    random <- "(1 | Year) + (1 | Pasture)"
     formula <- stats::as.formula(paste(response, "~", fixed, "+", random))
     fit$data <- data
     fit$fitted_response <- response
@@ -20428,13 +20431,10 @@ afri_fit_one_response <- function(spec_row, fits) {
   # A later chunk must not silently reuse an old fit from before the requested
   # structure change. Re-run the source model chunks if this audit fails.
   fitted_groups <- names(lme4::ranef(fit$model))
-  normalized_groups <- vapply(strsplit(fitted_groups, ":", fixed = TRUE), function(parts) {
-    parts[parts == "YearFactor"] <- "Year"
-    parts[parts == "Pasture_ID"] <- "Pasture"
-    paste(sort(parts), collapse = ":")
-  }, character(1))
-  if (!identical(sort(unname(normalized_groups)), c("Pasture:Year", "Year"))) {
-    stop(response, ": retained source model does not match the requested Year/Year:Pasture-only random structure; rerun its source model chunks. No competing model fitted.")
+  normalized_groups <- ifelse(fitted_groups == "YearFactor", "Year",
+    ifelse(fitted_groups == "Pasture_ID", "Pasture", fitted_groups))
+  if (!identical(sort(normalized_groups), c("Pasture", "Year"))) {
+    stop(response, ": retained source model does not match the requested Year/Pasture-only random structure; rerun its source model chunks. No competing model fitted.")
   }
   fitted_terms <- afri_fixed_term_signature(fit$model)
   if (!identical(fitted_terms, afri_requested_fixed_terms(scale))) {
@@ -20714,17 +20714,14 @@ analysis_year_random_qc <- dplyr::bind_rows(lapply(analysis_fits, function(fit) 
 analysis_random_structure_qc <- dplyr::bind_rows(lapply(analysis_fits, function(fit) {
   if (is.null(fit)) return(NULL)
   groups <- names(lme4::ranef(fit$model))
-  nested_groups <- c("Year:Pasture", "Pasture:Year", "Year:Pasture_ID", "Pasture_ID:Year",
-                     "YearFactor:Pasture", "Pasture:YearFactor",
-                     "YearFactor:Pasture_ID", "Pasture_ID:YearFactor")
   tibble::tibble(Dataset = fit$dataset, Response = fit$response,
-    Has_pasture_year_random_intercept = any(groups %in% nested_groups),
-    Has_annual_repeated_cluster = any(groups %in% nested_groups),
+    Has_physical_Pasture_random_intercept = any(groups %in% c("Pasture", "Pasture_ID")),
+    Has_annual_repeated_cluster = any(groups %in% c("Pasture_Year", "PastureYear", "Year:Pasture_ID", "Pasture_ID:Year")),
     Has_animal_year_random_intercept = "Animal_Year_ID" %in% groups,
-    Requested_random_groups = "Year; Year:Pasture",
+    Requested_random_groups = "Year; physical Pasture",
     Actual_random_groups = paste(groups, collapse = "; "),
     Matches_requested_random_structure = length(groups) == 2L &&
-      any(groups %in% c("Year", "YearFactor")) && any(groups %in% nested_groups),
+      any(groups %in% c("Year", "YearFactor")) && any(groups %in% c("Pasture", "Pasture_ID")),
     Requested_fixed_effects = if (fit$scale == "period") "TRT * SR + Period" else "TRT * SR",
     Actual_fixed_terms = paste(afri_fixed_term_signature(fit$model), collapse = "; "),
     Matches_requested_fixed_structure = identical(afri_fixed_term_signature(fit$model), afri_requested_fixed_terms(fit$scale)),
@@ -20749,7 +20746,7 @@ analysis_model_documentation <- dplyr::bind_rows(lapply(analysis_fits, function(
     `Fixed effects` = fit$fixed_structure,
     `Random/repeated effects` = fit$repeated_structure,
     `Distribution and link` = "Gaussian / identity",
-    `Model specification and limitations` = paste("Requested Year/Year:Pasture-only random structure.",
+    `Model specification and limitations` = paste("Requested Year/Pasture-only random structure.",
       fit$correlation_limitation, fit$source, fit$inference_note),
     `Model diagnostics` = "Applicable Shapiro–Wilk, residual-fitted, Q–Q, scale-location, random-effect variances, singularity, convergence; flagged rows retained.",
     `Omnibus tests` = if (fit$dataset_key == "table1") "Preserved reference Type III tests" else paste("lmerTest Type III;", fit$inference$df_method),

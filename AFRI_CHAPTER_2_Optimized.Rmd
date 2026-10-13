@@ -44,7 +44,7 @@ chunk also provides these defaults when run interactively. `export_results:
 false` computes results without writing the final export collection.
 
 The workflow retains the revised HMM/GPS Sections 1–5.5, then runs BW,
-GreenFeed, integrated spatial and two-scale questions, retained Gaussian LMM
+GreenFeed, integrated spatial and two-scale questions, restored original-method canonical
 inference, publication tables, and the final map inventory. A monthly behavior
 question and a whole-season productivity question have different observation
 units; their results are not substituted for one another. Whole-season occupied
@@ -67,8 +67,8 @@ intercept or animal intercept is fitted.
 Management differences can vary across periods; correlation within
 repeated units beyond Year/Pasture clustering remains a stated limitation. The
 Global GreenFeed F specification matches its primary model, so it reuses that fit.
-The protected baseline models and initial-weight-adjusted final-weight ANCOVA
-retain their previous formulas.
+Earlier baseline and initial-weight-adjusted ANCOVA source models remain exploratory.
+The canonical manuscript analysis restores the original family/covariance methods.
 
 All final output is under `params$output_dir`:
 
@@ -125,7 +125,7 @@ if (!exists("params", inherits = FALSE) || is.null(params)) {
 afri_required_packages <- c(
   "dplyr", "tidyr", "readr", "stringr", "lubridate", "ggplot2",
   "lme4", "lmerTest", "emmeans", "car", "multcomp", "multcompView",
-  "sf", "openxlsx", "knitr", "readxl", "purrr", "digest", "DHARMa", "scales", "viridis"
+  "sf", "openxlsx", "knitr", "readxl", "purrr", "digest", "DHARMa", "glmmTMB", "performance", "scales", "viridis"
 )
 afri_missing_packages <- afri_required_packages[
   !vapply(afri_required_packages, requireNamespace, logical(1), quietly = TRUE)
@@ -19864,98 +19864,383 @@ if (isTRUE(export_results) && length(integrated_final_tables)) {
 ```
 
 
-## 9.6 Shared Gaussian mixed-model results
+## 9.6 Original canonical statistical methods
 
-This section collects the retained analyses for manuscript reporting. Sections 1–5.5
-remain the reference: the four monthly behavior/movement models and their existing
-EMMs, post-hoc letters, and tests are reused. They are not replaced by models of newly
-calculated season means. The whole-window spline ADG model and spatial-area models
-already fitted in Section 6 are likewise reused when their response-specific analysis
-rows match. Other scientifically distinct outcomes are fitted once with Gaussian LMMs.
+The manuscript analysis below restores the supplied original response-family rules,
+AIC-based positive-family selection, robust fitting/fallbacks and repeated-period
+RI versus AR(1) selection. Season behavior uses animal-year summaries. Period fixed
+effects retain TRT * SR * Period; Year and physical Pasture are random intercepts
+when estimable. Earlier source models remain exploratory and are not reused as
+canonical manuscript fits. The removed outside-RGP and combined-gas responses remain
+excluded. Actual family, final formula, covariance selection and diagnostics are
+reported; full study reproduction requires the original input datasets.
 
-`TRT` and `SR` are assigned to physical pastures. The design audit checks independent
-pastures in each factorial cell, and each retained response has its own complete-case
-sample count and replication audit. Animals, periods, and study years are not independent
-pasture treatment replicates. When a cell has fewer than two independent pastures,
-management P-values and management grouping letters are withheld from confirmatory
-reporting; available raw model-based tests remain explicitly exploratory and may be
-shown with that limitation in the publication tables.
+```{r canonical-statistical-setup, message=FALSE, warning=FALSE}
+canonical_required_packages <- c(
+  "dplyr", "tidyr", "stringr", "readr",
+  "lme4", "lmerTest", "glmmTMB",
+  "emmeans", "car", "DHARMa", "performance",
+  "multcomp", "multcompView"
+)
 
-All responses use the requested Year and physical Pasture random intercepts.
-Period responses include `TRT * SR * Period` as fixed effects; whole-season and
-preserved monthly reference responses retain `TRT * SR`. No additional pasture-year
-or animal random intercept is included. Pasture-year and animal-year identifiers
-remain available for observation keys and sample-count audits only. These requested
-models may leave additional within-animal, pasture-year, or serial correlation
-unmodeled; the publication and model documentation retain that limitation. Grouping
-factors are not removed because of a singular fit. The three observed years give
-limited precision for year variance. The protected monthly reference models and
-their original results are preserved. The Period interactions allow period patterns to vary across treatment and
-stocking-rate cells. EMM requests cover all `TRT × SR × Period` cells from the
-full interaction model.
+canonical_missing_packages <- canonical_required_packages[
+  !vapply(canonical_required_packages, requireNamespace, logical(1), quietly = TRUE)
+]
 
-Gaussian diagnostics, including applicable Shapiro–Wilk tests, are descriptive checks.
-A significant normality test does not trigger deletion, transformation, or a different
-family. Strong residual violations, non-estimability, or convergence failure are recorded
-for scientific review. There is no distribution selection, AR(1) model selection,
-fixed-model fallback, or silent removal of experimental grouping factors.
+if (length(canonical_missing_packages)) {
+  stop(
+    "The canonical statistical analysis requires these packages: ",
+    paste(canonical_missing_packages, collapse = ", "),
+    ". Install them before running this section."
+  )
+}
 
-```{r statistical-results-setup, message=FALSE, warning=FALSE}
-# Helpers are defined in the initial setup chunk and used by all later sections.
-stopifnot(is.function(afri_fit_lmm), is.function(afri_inference),
-          is.function(afri_diagnose_lmm))
-analysis_output_dir <- file.path(master_output_root, "06_Statistical_Analysis")
+# Type-III/marginal tests are defined using sum-to-zero contrasts.
+canonical_old_contrasts <- getOption("contrasts")
+options(contrasts = c("contr.sum", "contr.poly"))
 
-# Normalization changes labels/types only; the scientific outcomes are unchanged.
+CANONICAL_MANAGEMENT_ALPHA <- 0.05
+CANONICAL_AR1_AIC_IMPROVEMENT <- 2
+CANONICAL_DHARMA_SIMULATIONS <- 500L
+CANONICAL_ALLOW_EXPLORATORY_MANAGEMENT_CLD <- FALSE
+
+# ============================================================
+# CANONICAL STATISTICAL ANALYSIS OUTPUT DIRECTORY
+# ============================================================
+
+canonical_output_dir <- file.path(master_output_root, "06_Statistical_Analysis")
+
+if (export_results) {
+  dir.create(canonical_output_dir,
+    recursive = TRUE,
+    showWarnings = FALSE)
+
+  if (!dir.exists(canonical_output_dir)) {
+    stop("Could not create canonical statistical-analysis output directory: ", canonical_output_dir )
+  }
+
+  # Verify that R can actually write to this directory
+  canonical_write_test <- file.path(
+    canonical_output_dir,
+    ".write_test"
+  )
+
+  writeLines(
+    "write test",
+    canonical_write_test
+  )
+
+  if (!file.exists(canonical_write_test)) {
+    stop(
+      "The canonical output directory exists, but R cannot write to it: ",
+      canonical_output_dir
+    )
+  }
+
+  unlink(canonical_write_test)
+}
+
+cat(
+  "\nCanonical statistical results directory:\n",
+  canonical_output_dir,
+  "\n"
+)
+
 afri_normalize_trt <- function(x) {
   x <- stringr::str_squish(as.character(x))
   dplyr::case_when(
     x %in% c("Continuous", "C_C", "CC", "CG", "Continuous grazing") ~ "Continuous",
     x %in% c("Rotational", "R_G", "RG", "VF-RG", "VF_RG", "Rotational grazing") ~ "Rotational",
-    TRUE ~ x)
+    TRUE ~ x
+  )
 }
+
 afri_normalize_sr <- function(x) {
   x <- stringr::str_squish(as.character(x))
-  dplyr::case_when(x %in% c("Light", "L", "light") ~ "Light",
-                  x %in% c("Moderate", "M", "moderate") ~ "Moderate",
-                  x %in% c("Heavy", "H", "heavy") ~ "Heavy", TRUE ~ x)
+  dplyr::case_when(
+    x %in% c("Light", "L", "light") ~ "Light",
+    x %in% c("Moderate", "M", "moderate") ~ "Moderate",
+    x %in% c("Heavy", "H", "heavy") ~ "Heavy",
+    TRUE ~ x
+  )
 }
+
 afri_normalize_pasture <- function(x) {
   n <- suppressWarnings(readr::parse_number(as.character(x)))
   ifelse(is.finite(n), paste0("Pasture_", as.integer(n)), as.character(x))
 }
-afri_model_id <- function(dataset_key, response) paste(dataset_key, response, sep = "__")
+
 afri_set_sum_contrasts <- function(x) {
-  if (is.factor(x) && nlevels(x) > 1L) contrasts(x) <- stats::contr.sum(nlevels(x))
+  if (is.factor(x) && nlevels(x) > 1L) {
+    contrasts(x) <- stats::contr.sum(nlevels(x))
+  }
   x
 }
-afri_pick_numeric <- function(tab, candidates) {
-  hit <- intersect(candidates, names(tab))
-  if (length(hit)) suppressWarnings(as.numeric(tab[[hit[1L]]])) else rep(NA_real_, nrow(tab))
+
+afri_skewness <- function(x) {
+  x <- x[is.finite(x)]
+  if (length(x) < 3L) return(NA_real_)
+  s <- stats::sd(x)
+  if (!is.finite(s) || s == 0) return(0)
+  mean(((x - mean(x)) / s)^3)
 }
-afri_period_label <- function(x) {
-  x <- as.character(x)
-  ifelse(grepl("^RGP", x), x, paste0("RGP", x))
+
+afri_safe_p <- function(x) {
+  if (is.null(x) || !length(x)) NA_real_ else suppressWarnings(as.numeric(x[1]))
+}
+
+afri_model_id <- function(dataset_key, response) {
+  paste(dataset_key, response, sep = "__")
 }
 ```
 
-## 9.7 Analysis inputs and specification
 
-All inputs below already exist in memory. The whole-calendar spline ADG based on
-design-season boundaries is distinct from whole-window `Smooth_Period_ADG`; both
-are retained and labeled. Joined whole-season GreenFeed responses are aliases of the
-Dressler gas values only if their complete observation keys and numerical values
-match. A genuinely different endpoint-linked subset is retained as an explicitly
-labeled sensitivity analysis. No input file is reread in this section.
+```{r canonical-table1-dataset, message=FALSE, warning=FALSE}
+Table1_behavior_season <- behavior_hours_wide_qc %>%
+  dplyr::group_by(
+    Year, Pasture, TRT, SR, REAL_ID
+  ) %>%
+  dplyr::summarise(
+    Grazing_h = mean(Grazing, na.rm = TRUE),
+    Resting_h = mean(Resting, na.rm = TRUE),
+    Traveling_h = mean(Traveling, na.rm = TRUE),
+    Behavior_days = dplyr::n_distinct(Date),
+    .groups = "drop"
+  )
 
-```{r statistical-analysis-specification, message=FALSE, warning=FALSE}
-analysis_specs <- dplyr::bind_rows(
+Table1_ddt_season <- Daily_DDT %>%
+  dplyr::mutate(DDT_km = DDT / 1000) %>%
+  dplyr::group_by(
+    Year, Pasture, TRT, SR, REAL_ID
+  ) %>%
+  dplyr::summarise(
+    mean_DDT_day = mean(DDT_km, na.rm = TRUE),
+    DDT_days = dplyr::n_distinct(Date),
+    .groups = "drop"
+  )
+
+Table1_Grazing_Behaviors <- dplyr::full_join(
+  Table1_behavior_season,
+  Table1_ddt_season,
+  by = c("Year", "Pasture", "TRT", "SR", "REAL_ID")
+) %>%
+  dplyr::transmute(
+    Year = as.integer(as.character(Year)),
+    Pasture = afri_normalize_pasture(Pasture),
+    TRT = afri_normalize_trt(TRT),
+    SR = afri_normalize_sr(SR),
+    REAL_ID = as.character(REAL_ID),
+    Grazing_h,
+    Resting_h,
+    Traveling_h,
+    mean_DDT_day,
+    Behavior_days,
+    DDT_days
+  ) %>%
+  dplyr::arrange(Year, Pasture, REAL_ID)
+
+if (anyDuplicated(Table1_Grazing_Behaviors[c("Year", "REAL_ID")])) {
+  warning(
+    "Table1_Grazing_Behaviors has more than one row for at least one ",
+    "animal-year. Review identifiers before interpretation."
+  )
+}
+```
+
+
+```{r canonical-table2-datasets, message=FALSE, warning=FALSE}
+Table2_ADG_animal <- animal_spline_metrics %>%
+  dplyr::transmute(
+    Year = as.integer(as.character(Year)),
+    Pasture = afri_normalize_pasture(Pasture),
+    TRT = afri_normalize_trt(TRT),
+    SR = afri_normalize_sr(SR),
+    SEID = as.character(SEID),
+    Smooth_Period_ADG = as.numeric(Smooth_Period_ADG),
+    Smooth_BW_Change = as.numeric(Smooth_BW_Change),
+    Fitted_Start_BW = as.numeric(Fitted_Start_BW),
+    Fitted_End_BW = as.numeric(Fitted_End_BW)
+  ) %>%
+  dplyr::filter(is.finite(Smooth_Period_ADG)) %>%
+  dplyr::arrange(Year, Pasture, SEID)
+
+if (anyDuplicated(Table2_ADG_animal[c("Year", "SEID")])) {
+  stop(
+    "Table2_ADG_animal must contain one Smooth_Period_ADG value per animal-year."
+  )
+}
+
+# Alias requested in the statistical plan. This is one row per animal-season.
+dressler_animal_means <- dressler_animal_system %>%
+  dplyr::transmute(
+    Year = as.integer(as.character(Year)),
+    Pasture = afri_normalize_pasture(Pasture),
+    TRT = afri_normalize_trt(TRT),
+    SR = afri_normalize_sr(SR),
+    SEID = as.character(SEID),
+    CH4_Mean_g_d = as.numeric(CH4_Mean_g_d),
+    CO2_Mean_g_d = as.numeric(CO2_Mean_g_d),
+    ValidBothVisits_2min,
+    ObservedDays
+  ) %>%
+  dplyr::arrange(Year, Pasture, SEID)
+
+if (anyDuplicated(dressler_animal_means[c("Year", "SEID")])) {
+  stop("dressler_animal_means must contain one row per animal-year.")
+}
+```
+
+
+```{r canonical-other-analysis-datasets, message=FALSE, warning=FALSE}
+period_pasture_analysis <- period_level_grazing_productivity %>%
+  dplyr::mutate(
+    Year = as.integer(as.character(Year)),
+    Pasture = afri_normalize_pasture(Pasture),
+    TRT = afri_normalize_trt(TRT),
+    SR = afri_normalize_sr(SR),
+    Period = factor(
+      as.character(Period),
+      levels = c("RGP1", "RGP2", "RGP3", "RGP4", "RGP5")
+    )
+  )
+
+whole_season_pasture_analysis <- whole_season_grazing_productivity %>%
+  dplyr::mutate(
+    Year = as.integer(as.character(Year)),
+    Pasture = afri_normalize_pasture(Pasture),
+    TRT = afri_normalize_trt(TRT),
+    SR = afri_normalize_sr(SR)
+  )
+
+shrunk_bw_season_analysis_final <- shrunk_bw_season_analysis %>%
+  dplyr::mutate(
+    Year = as.integer(as.character(Year)),
+    Pasture = afri_normalize_pasture(Pasture),
+    TRT = afri_normalize_trt(TRT),
+    SR = afri_normalize_sr(SR),
+    SEID = as.character(SEID)
+  )
+
+shrunk_bw_period_analysis_final <- shrunk_bw_period_analysis %>%
+  dplyr::mutate(
+    Year = as.integer(as.character(Year)),
+    Pasture = afri_normalize_pasture(Pasture),
+    TRT = afri_normalize_trt(TRT),
+    SR = afri_normalize_sr(SR),
+    SEID = as.character(SEID),
+    Period = factor(
+      as.character(Period),
+      levels = c("RGP1", "RGP2", "RGP3", "RGP4", "RGP5")
+    )
+  )
+```
+
+
+```{r canonical-design-audit, message=FALSE, warning=FALSE}
+canonical_design_map <- dplyr::bind_rows(
+  Table1_Grazing_Behaviors %>%
+    dplyr::select(Year, Pasture, TRT, SR),
+  Table2_ADG_animal %>%
+    dplyr::select(Year, Pasture, TRT, SR),
+  dressler_animal_means %>%
+    dplyr::select(Year, Pasture, TRT, SR),
+  period_pasture_analysis %>%
+    dplyr::select(Year, Pasture, TRT, SR)
+) %>%
+  dplyr::filter(
+    !is.na(Pasture),
+    !is.na(TRT),
+    !is.na(SR)
+  ) %>%
+  dplyr::distinct()
+
+canonical_pasture_mapping <- canonical_design_map %>%
+  dplyr::distinct(Pasture, TRT, SR)
+
+canonical_pasture_mapping_conflicts <- canonical_pasture_mapping %>%
+  dplyr::count(Pasture, name = "N_factorial_assignments") %>%
+  dplyr::filter(N_factorial_assignments > 1L)
+
+if (nrow(canonical_pasture_mapping_conflicts)) {
+  stop(
+    "At least one physical pasture maps to more than one TRT x SR assignment. ",
+    "Resolve the design mapping before modeling."
+  )
+}
+
+canonical_cell_replication <- canonical_pasture_mapping %>%
+  dplyr::count(TRT, SR, name = "N_physical_pastures") %>%
+  tidyr::complete(
+    TRT = c("Continuous", "Rotational"),
+    SR = c("Light", "Moderate", "Heavy"),
+    fill = list(N_physical_pastures = 0L)
+  ) %>%
+  dplyr::arrange(TRT, SR)
+
+canonical_design_has_cell_replication <-
+  nrow(canonical_cell_replication) == 6L &&
+  all(canonical_cell_replication$N_physical_pastures >= 2L)
+
+canonical_year_audit <- canonical_design_map %>%
+  dplyr::distinct(Year) %>%
+  dplyr::arrange(Year)
+
+canonical_design_summary <- tibble::tibble(
+  Item = c(
+    "Physical pastures",
+    "Observed years",
+    "TRT levels",
+    "SR levels",
+    "Minimum pastures per TRT x SR cell",
+    "Independent factorial cell replication",
+    "Primary year treatment",
+    "Primary experimental unit"
+  ),
+  Value = c(
+    as.character(dplyr::n_distinct(canonical_design_map$Pasture)),
+    paste(canonical_year_audit$Year, collapse = ", "),
+    paste(c("Continuous", "Rotational"), collapse = ", "),
+    paste(c("Light", "Moderate", "Heavy"), collapse = ", "),
+    as.character(min(canonical_cell_replication$N_physical_pastures)),
+    ifelse(canonical_design_has_cell_replication, "Yes", "No"),
+    "Random intercept (3 observed levels)",
+    "Physical pasture"
+  )
+)
+
+if (!canonical_design_has_cell_replication) {
+  warning(
+    "The 2 x 3 factorial treatment structure is not independently replicated ",
+    "at the physical-pasture level. Raw model-based TRT/SR P-values will be ",
+    "exported as exploratory, but confirmatory manuscript P-values and ",
+    "management CLDs will be suppressed."
+  )
+}
+
+canonical_pasture_influence_audit <- canonical_pasture_mapping %>%
+  dplyr::mutate(
+    Removing_pasture_removes_factorial_cell = !canonical_design_has_cell_replication,
+    Influence_note = ifelse(
+      canonical_design_has_cell_replication,
+      "Independent pastures remain in this TRT x SR cell if one pasture is omitted.",
+      "Structural influence: omitting this pasture removes the only physical experimental unit in its TRT x SR cell; leave-one-pasture treatment sensitivity is therefore not a valid routine influence deletion."
+    )
+  )
+
+canonical_design_summary
+canonical_cell_replication
+canonical_pasture_influence_audit
+```
+
+
+```{r canonical-model-specification, message=FALSE, warning=FALSE}
+canonical_specs <- dplyr::bind_rows(
   tibble::tribble(
     ~Table, ~Dataset_key, ~Dataset, ~Response, ~Scale, ~Unit, ~Subject, ~Family_rule,
     "TABLE 1", "table1", "Table1_Grazing_Behaviors", "Grazing_h", "season", "animal", NA_character_, "gaussian",
     "TABLE 1", "table1", "Table1_Grazing_Behaviors", "Resting_h", "season", "animal", NA_character_, "gaussian",
-    "TABLE 1", "table1", "Table1_Grazing_Behaviors", "Traveling_h", "season", "animal", NA_character_, "gaussian",
-    "TABLE 1", "table1", "Table1_Grazing_Behaviors", "mean_DDT_day", "season", "animal", NA_character_, "gaussian"
+    "TABLE 1", "table1", "Table1_Grazing_Behaviors", "Traveling_h", "season", "animal", NA_character_, "auto_positive",
+    "TABLE 1", "table1", "Table1_Grazing_Behaviors", "mean_DDT_day", "season", "animal", NA_character_, "auto_positive"
   ),
   tibble::tibble(
     Table = "TABLE 2",
@@ -19984,15 +20269,15 @@ analysis_specs <- dplyr::bind_rows(
     Unit = c(rep("animal", 5), rep("pasture", 4)),
     Subject = NA_character_,
     Family_rule = c(
+      "auto_positive",
+      "auto_positive",
       "gaussian",
       "gaussian",
       "gaussian",
-      "gaussian",
-      "gaussian",
-      "gaussian",
-      "gaussian",
-      "gaussian",
-      "gaussian"
+      "auto_positive",
+      "auto_positive",
+      "auto_positive",
+      "auto_positive"
     )
   ),
   tibble::tibble(
@@ -20002,6 +20287,7 @@ analysis_specs <- dplyr::bind_rows(
     Response = c(
       "active_ha_all_pasture",
       "active_ha_inside_rgp",
+      "active_ha_outside_rgp",
       "total_LWG_kg",
       "mean_RGP_ADG_kg_day",
       "CH4_g_animal_day",
@@ -20012,14 +20298,20 @@ analysis_specs <- dplyr::bind_rows(
       "CH4_g_per_active_ha_inside_rgp",
       "CO2_g_per_active_ha_all_pasture",
       "CO2_g_per_active_ha_inside_rgp",
+      "GHG_g_per_active_ha_all_pasture",
+      "GHG_g_per_active_ha_inside_rgp",
       "CH4_g_per_kg_LWG",
-      "CO2_g_per_kg_LWG"
+      "CO2_g_per_kg_LWG",
+      "GHG_g_per_kg_LWG"
     ),
     Scale = "period",
     Unit = "pasture",
     Subject = NA_character_,
     Family_rule = c(
-      rep("gaussian", 14)
+      "gamma_log", "gamma_log", "nonnegative_auto",
+      "gaussian", "gaussian", "gaussian", "gaussian",
+      "gaussian", "gaussian",
+      rep("gamma_log", 9)
     )
   ),
   tibble::tibble(
@@ -20036,14 +20328,18 @@ analysis_specs <- dplyr::bind_rows(
       "CH4_g_per_active_ha_day_whole_season",
       "CO2_g_per_active_ha_day_whole_season",
       "ADG_Land_kg_per_active_ha_day_whole_season",
+      "GHG_g_per_active_ha_whole_season",
       "CH4_g_per_kg_LWG_whole_season",
-      "CO2_g_per_kg_LWG_whole_season"
+      "CO2_g_per_kg_LWG_whole_season",
+      "GHG_g_per_kg_LWG_whole_season"
     ),
     Scale = "season",
     Unit = "pasture",
     Subject = NA_character_,
     Family_rule = c(
-      rep("gaussian", 11)
+      rep("gaussian", 6),
+      "auto_positive", "auto_positive", "gaussian",
+      rep("gamma_log", 4)
     )
   ),
   tibble::tibble(
@@ -20076,751 +20372,3706 @@ analysis_specs <- dplyr::bind_rows(
   )
 )
 
+# Ensure every dataset entering the canonical model engine contains physical Pasture
+# and a derived Pasture_Year identifier. Pasture is the random-effect experimental unit;
+# Pasture_Year is retained only to index within-year repeated-period/AR(1) sequences.
+afri_add_pasture_grouping_columns <- function(data, dataset_name) {
+  required_grouping_cols <- c("Pasture", "Year")
+  missing_grouping_cols <- setdiff(required_grouping_cols, names(data))
 
-# Reference metadata identify the original monthly response/model, not a new season response.
-analysis_specs$Scale[analysis_specs$Dataset_key == "table1"] <- "monthly"
-analysis_specs$Dataset[analysis_specs$Dataset_key == "table1"] <- c(
-  "Grazing_model_data", "Resting_model_data", "Traveling_model_data", "Monthly_DDT_filtered")
-analysis_specs$Subject[analysis_specs$Unit == "animal"] <- "SEID"
-analysis_specs$Subject[analysis_specs$Dataset_key == "table1"] <- "REAL_ID"
-analysis_specs$Family_rule <- "Gaussian identity"
+  if (length(missing_grouping_cols)) {
+    stop(
+      dataset_name,
+      ": cannot construct the Pasture_Year repeated-period identifier because these columns are missing: ",
+      paste(missing_grouping_cols, collapse = ", ")
+    )
+  }
 
-# Objects are aliases; no scientific response is recalculated or averaged again.
-Table2_ADG_animal <- adg_model_data
-dressler_animal_means <- dressler_animal_system
-period_pasture_analysis <- period_level_grazing_productivity
-whole_season_pasture_analysis <- whole_season_grazing_productivity
-shrunk_bw_season_analysis_final <- shrunk_bw_season_analysis
-shrunk_bw_period_analysis_final <- shrunk_bw_period_analysis
-analysis_datasets <- list(
-  table2_adg = Table2_ADG_animal, dressler = dressler_animal_means,
+  data %>%
+    dplyr::mutate(
+      Pasture = afri_normalize_pasture(Pasture),
+      Pasture_Year = interaction(
+        factor(Pasture),
+        factor(Year),
+        drop = TRUE,
+        lex.order = TRUE
+      )
+    )
+}
+
+# Add normalized Pasture and the non-random Pasture_Year period identifier to each dataset.
+Table1_Grazing_Behaviors <- afri_add_pasture_grouping_columns(
+  Table1_Grazing_Behaviors, "Table1_Grazing_Behaviors"
+)
+Table2_ADG_animal <- afri_add_pasture_grouping_columns(
+  Table2_ADG_animal, "Table2_ADG_animal"
+)
+dressler_animal_means <- afri_add_pasture_grouping_columns(
+  dressler_animal_means, "dressler_animal_means"
+)
+period_pasture_analysis <- afri_add_pasture_grouping_columns(
+  period_pasture_analysis, "period_pasture_analysis"
+)
+whole_season_pasture_analysis <- afri_add_pasture_grouping_columns(
+  whole_season_pasture_analysis, "whole_season_pasture_analysis"
+)
+shrunk_bw_season_analysis_final <- afri_add_pasture_grouping_columns(
+  shrunk_bw_season_analysis_final, "shrunk_bw_season_analysis_final"
+)
+shrunk_bw_period_analysis_final <- afri_add_pasture_grouping_columns(
+  shrunk_bw_period_analysis_final, "shrunk_bw_period_analysis_final"
+)
+
+canonical_datasets <- list(
+  table1 = Table1_Grazing_Behaviors,
+  table2_adg = Table2_ADG_animal,
+  dressler = dressler_animal_means,
   period_pasture = period_pasture_analysis,
   season_pasture = whole_season_pasture_analysis,
   shrunk_season = shrunk_bw_season_analysis_final,
-  shrunk_period = shrunk_bw_period_analysis_final)
-statistical_reference_models <- list(
-  Grazing_h = mod.Monthly_Grazing, Resting_h = mod.Monthly_Resting,
-  Traveling_h = mod.Monthly_Traveling, mean_DDT_day = mod.Monthly_DDT_filtered)
-statistical_reference_data <- list(
-  Grazing_h = Grazing_model_data, Resting_h = Resting_model_data,
-  Traveling_h = Traveling_model_data, mean_DDT_day = Monthly_DDT_filtered)
-statistical_reference_labels <- c(
-  Grazing_h = "Grazing (h/day)", Resting_h = "Resting (h/day)",
-  Traveling_h = "Traveling (h/day)", mean_DDT_day = "Daily distance traveled (km/day)")
-statistical_reference_emm_objects <- list(
-  Grazing_h = emm.Monthly_Grazing, Resting_h = emm.Monthly_Resting,
-  Traveling_h = emm.Monthly_Traveling, mean_DDT_day = emm_DDT)
+  shrunk_period = shrunk_bw_period_analysis_final
+)
+
+# Hard grouping audit: every dataset must contain physical Pasture. The derived
+# Pasture_Year identifier must equal Pasture x Year because period-level AR(1) models
+# may use it as a sequence ID, never as a random intercept.
+canonical_grouping_column_audit <- dplyr::bind_rows(
+  lapply(names(canonical_datasets), function(dataset_key) {
+    d <- canonical_datasets[[dataset_key]]
+    has_pasture <- "Pasture" %in% names(d)
+    has_pasture_year <- "Pasture_Year" %in% names(d)
+
+    expected_py <- if (has_pasture && "Year" %in% names(d)) {
+      interaction(
+        factor(afri_normalize_pasture(d$Pasture)),
+        factor(d$Year),
+        drop = TRUE,
+        lex.order = TRUE
+      )
+    } else {
+      factor(character())
+    }
+
+    py_matches <- has_pasture_year && length(expected_py) == nrow(d) &&
+      isTRUE(all(as.character(d$Pasture_Year) == as.character(expected_py)))
+
+    tibble::tibble(
+      Dataset_key = dataset_key,
+      N_rows = nrow(d),
+      Has_Pasture = has_pasture,
+      Has_Pasture_Year = has_pasture_year,
+      N_Pasture = if (has_pasture) dplyr::n_distinct(d$Pasture) else NA_integer_,
+      N_Pasture_Year = if (has_pasture_year) dplyr::n_distinct(d$Pasture_Year) else NA_integer_,
+      Pasture_Year_matches_Pasture_x_Year = py_matches
+    )
+  })
+)
+
+if (any(
+  !canonical_grouping_column_audit$Has_Pasture |
+    !canonical_grouping_column_audit$Has_Pasture_Year |
+    !canonical_grouping_column_audit$Pasture_Year_matches_Pasture_x_Year
+)) {
+  stop(
+    "At least one canonical dataset does not contain valid Pasture and Pasture_Year columns. ",
+    "Review canonical_grouping_column_audit before model fitting."
+  )
+}
+
+print(canonical_grouping_column_audit)
+
+# Backward-compatible alias retained for older export/debug code.
+canonical_random_effect_column_audit <- canonical_grouping_column_audit
 ```
 
-## 9.8 Experimental-unit audit
 
-The audit uses physical pasture mappings, not the number of records. It also detects
-conflicting management assignments. Complete-case replication is rechecked separately
-for every response below, because missing outcomes can change the available design.
+```{r canonical-model-engine-preparation, message=FALSE, warning=FALSE}
+afri_prepare_model_data <- function(
+    data,
+    response,
+    scale = c("season", "period"),
+    unit = c("animal", "pasture"),
+    subject_col = NULL) {
 
-```{r statistical-design-audit, message=FALSE, warning=FALSE}
-analysis_design_map <- dplyr::bind_rows(
-  lapply(c(statistical_reference_data, analysis_datasets), function(d) {
-    missing <- setdiff(c("Year", "Pasture", "TRT", "SR"), names(d))
-    if (length(missing)) stop("Analysis input lacks design columns: ", paste(missing, collapse = ", "))
-    dplyr::transmute(d, Year = as.character(Year),
-      Pasture = afri_normalize_pasture(Pasture), TRT = afri_normalize_trt(TRT),
-      SR = afri_normalize_sr(SR))
-  })) |> dplyr::filter(stats::complete.cases(Year, Pasture, TRT, SR)) |> dplyr::distinct()
-analysis_pasture_mapping <- dplyr::distinct(analysis_design_map, Pasture, TRT, SR)
-analysis_pasture_mapping_conflicts <- analysis_pasture_mapping |>
-  dplyr::count(Pasture, name = "N_factorial_assignments") |>
-  dplyr::filter(N_factorial_assignments > 1L)
-if (nrow(analysis_pasture_mapping_conflicts)) {
-  stop("Physical pasture has conflicting TRT × SR assignments; correct the mapping before inference.")
-}
-afri_replication_audit <- function(d) {
-  dplyr::distinct(d, Pasture, TRT, SR) |>
-    dplyr::count(TRT, SR, name = "N_physical_pastures") |>
-    dplyr::mutate(TRT = as.character(TRT), SR = as.character(SR)) |>
-    tidyr::complete(TRT = c("Continuous", "Rotational"),
-      SR = c("Light", "Moderate", "Heavy"), fill = list(N_physical_pastures = 0L))
-}
-analysis_cell_replication <- afri_replication_audit(analysis_design_map)
-analysis_design_has_cell_replication <- all(analysis_cell_replication$N_physical_pastures >= 2L)
-analysis_design_summary <- tibble::tibble(
-  Item = c("Physical pastures", "Observed years", "Minimum pastures per TRT × SR cell",
-           "Independent factorial cell replication", "Experimental unit"),
-  Value = c(as.character(dplyr::n_distinct(analysis_design_map$Pasture)),
-    paste(sort(unique(analysis_design_map$Year)), collapse = ", "),
-    as.character(min(analysis_cell_replication$N_physical_pastures)),
-    ifelse(analysis_design_has_cell_replication, "Yes", "No"), "Physical pasture"))
-analysis_pasture_influence_audit <- analysis_pasture_mapping |>
-  dplyr::mutate(Removing_pasture_removes_factorial_cell = !analysis_design_has_cell_replication,
-    Influence_note = ifelse(analysis_design_has_cell_replication,
-      "Evaluate influence with remaining independent pasture replication.",
-      "Deleting this pasture deletes its factorial cell; routine pasture deletion cannot establish treatment robustness."))
-if (!analysis_design_has_cell_replication) warning(
-  "Pasture treatment cells are unreplicated. Management inference is exploratory; confirmatory P-values and letters are withheld.")
-analysis_design_summary
-analysis_cell_replication
-```
+  scale <- match.arg(scale)
+  unit <- match.arg(unit)
 
-## 9.9 Response-specific Gaussian LMMs and reuse audit
-
-Incomplete rows are filtered for the variables required by that response only. The
-specified random effects are retained even when their variances reach zero. A model
-that lacks the observations needed for its design is marked unavailable; it is not
-replaced by an unclustered regression. The requested Year/Pasture intercepts account
-for those shared groups, but no animal intercept, pasture-year intercept, or AR(1)
-residual process is modeled. Additional within-animal and within-pasture-year
-correlation and residual time patterns require scientific review.
-
-```{r statistical-response-models, message=FALSE, warning=FALSE}
-afri_prepare_model_data <- function(data, response, scale, unit, subject_col = NULL) {
   required <- c(response, "Year", "Pasture", "TRT", "SR")
   if (scale == "period") required <- c(required, "Period")
-  if (unit == "animal") required <- c(required, subject_col)
-  missing <- setdiff(required, names(data))
-  if (length(missing)) stop(response, ": missing required columns ", paste(missing, collapse = ", "))
-  # Retain only columns needed for fitting/auditing, avoiding full-dataset copies.
-  d <- as.data.frame(data[, unique(required), drop = FALSE])
+
+  if (unit == "animal" && !is.null(subject_col) && nzchar(subject_col)) {
+    required <- c(required, subject_col)
+  }
+
+  if (scale == "period" && unit == "animal" &&
+      (is.null(subject_col) || !nzchar(subject_col))) {
+    stop("A subject column is required for animal-level repeated-period models.")
+  }
+
+  missing_cols <- setdiff(required, names(data))
+  if (length(missing_cols)) {
+    stop(
+      response, ": missing required columns: ",
+      paste(missing_cols, collapse = ", ")
+    )
+  }
+
+  d <- data
   d[[response]] <- suppressWarnings(as.numeric(d[[response]]))
-  d$Year <- factor(d$Year)
-  d$Pasture <- factor(afri_normalize_pasture(d$Pasture))
-  d$TRT <- factor(afri_normalize_trt(d$TRT), levels = c("Continuous", "Rotational"))
-  d$SR <- factor(afri_normalize_sr(d$SR), levels = c("Light", "Moderate", "Heavy"))
-  if (scale == "period") d$Period <- factor(afri_period_label(d$Period), levels = paste0("RGP", 1:5))
-  keep <- stats::complete.cases(d[, required, drop = FALSE]) & is.finite(d[[response]])
-  d <- droplevels(d[keep, , drop = FALSE])
-  if (!nrow(d)) stop(response, ": no complete finite observations remain.")
-  if (nlevels(d$TRT) != 2L || nlevels(d$SR) != 3L) stop(response, ": incomplete factorial levels; model not silently simplified.")
-  if (nlevels(d$Year) < 2L || nlevels(d$Pasture) < 2L) stop(response, ": required Year/Pasture grouping is not estimable.")
-  d$Pasture_Year <- interaction(d$Pasture, d$Year, drop = TRUE, lex.order = TRUE)
+
+  d <- d %>%
+    dplyr::mutate(
+      Year = factor(Year),
+      Pasture = factor(afri_normalize_pasture(Pasture)),
+      TRT = factor(afri_normalize_trt(TRT), levels = c("Continuous", "Rotational")),
+      SR = factor(
+        afri_normalize_sr(SR),
+        levels = c("Light", "Moderate", "Heavy")
+      ),
+      Pasture_Year = interaction(Pasture, Year, drop = TRUE, lex.order = TRUE)
+    )
+
+  if (scale == "period") {
+    d <- d %>%
+      dplyr::mutate(
+        Period = factor(
+          as.character(Period),
+          levels = c("RGP1", "RGP2", "RGP3", "RGP4", "RGP5")
+        ),
+        Period_Index = as.integer(Period)
+      )
+  }
+
   if (unit == "animal") {
-    d$Animal_Year_ID <- interaction(d$Year, d$Pasture, d[[subject_col]], drop = TRUE, lex.order = TRUE)
+    if (!is.null(subject_col) && subject_col %in% names(d)) {
+      d$Animal_ID <- interaction(
+        d$Pasture,
+        as.character(d[[subject_col]]),
+        drop = TRUE,
+        lex.order = TRUE
+      )
+      d$Animal_Year_ID <- interaction(
+        d$Animal_ID,
+        d$Year,
+        drop = TRUE,
+        lex.order = TRUE
+      )
+    }
   }
-  observation_key <- c("Year", "Pasture")
-  if (unit == "animal") observation_key <- c(observation_key, subject_col)
-  if (scale == "period") observation_key <- c(observation_key, "Period")
-  if (anyDuplicated(d[, observation_key, drop = FALSE])) {
-    stop(response, ": more than one row for an expected analysis unit; inspect aggregation before fitting.")
-  }
-  # Metadata identifiers support keys/counts; they are not fitted random effects.
-  if (scale == "period" && nlevels(d$Period) < 2L) stop(response, ": fewer than two Period levels.")
+
+  complete_cols <- required
+  keep <- stats::complete.cases(d[, complete_cols, drop = FALSE]) &
+    is.finite(d[[response]])
+  d <- droplevels(d[keep, , drop = FALSE])
+
+  if (!nrow(d)) stop(response, ": no complete finite observations remain.")
+
   d$TRT <- afri_set_sum_contrasts(d$TRT)
   d$SR <- afri_set_sum_contrasts(d$SR)
   if (scale == "period") d$Period <- afri_set_sum_contrasts(d$Period)
+
+  if (nlevels(d$TRT) < 2L || nlevels(d$SR) < 2L) {
+    warning(response, ": at least one TRT or SR level is absent after filtering.")
+  }
+
+  if (scale == "period" && nlevels(d$Period) < 2L) {
+    stop(response, ": fewer than two Period levels remain after filtering.")
+  }
+
+  if (scale == "season" && unit == "animal" && !is.null(subject_col)) {
+    duplicate_animal_year <- d %>%
+      dplyr::count(Year, .data[[subject_col]], name = "n") %>%
+      dplyr::filter(n > 1L)
+    if (nrow(duplicate_animal_year)) {
+      warning(
+        response,
+        ": more than one season-level row exists for at least one animal-year. ",
+        "Verify aggregation before interpretation."
+      )
+    }
+  }
+
   d
 }
 
-# Equality checks compare complete-case observation keys and outcome values. Renamed
-# grouping columns are normalized, but unequal rows are never declared duplicates.
-afri_analysis_signature <- function(d, response, period_col = NULL, subject_col = NULL) {
-  choose <- function(candidates) {
-    hit <- intersect(candidates, names(d))
-    if (!length(hit)) stop("Cannot compare model rows; missing ", paste(candidates, collapse = "/"))
-    hit[1L]
+afri_distribution_audit <- function(data, response, dataset, scale, unit) {
+  x <- suppressWarnings(as.numeric(data[[response]]))
+  x <- x[is.finite(x)]
+  tibble::tibble(
+    Dataset = dataset,
+    Response = response,
+    Scale = scale,
+    Unit = unit,
+    N = length(x),
+    Min = if (length(x)) min(x) else NA_real_,
+    Q1 = if (length(x)) stats::quantile(x, 0.25, names = FALSE) else NA_real_,
+    Median = if (length(x)) stats::median(x) else NA_real_,
+    Mean = if (length(x)) mean(x) else NA_real_,
+    Q3 = if (length(x)) stats::quantile(x, 0.75, names = FALSE) else NA_real_,
+    Max = if (length(x)) max(x) else NA_real_,
+    SD = if (length(x) > 1L) stats::sd(x) else NA_real_,
+    Skewness = afri_skewness(x),
+    N_zero = sum(x == 0),
+    N_negative = sum(x < 0),
+    N_positive = sum(x > 0)
+  )
+}
+
+afri_resolve_family <- function(y, family_rule) {
+  y <- y[is.finite(y)]
+  has_negative <- any(y < 0)
+  has_zero <- any(y == 0)
+
+  if (family_rule == "gaussian") {
+    return(list(distribution = "Gaussian", link = "identity",
+                note = "Prespecified Gaussian model."))
   }
-  year <- choose(c("Year", "YearFactor"))
-  pasture <- choose(c("Pasture", "Pasture_ID"))
-  ans <- data.frame(Year = as.character(d[[year]]),
-    Pasture = afri_normalize_pasture(d[[pasture]]), TRT = afri_normalize_trt(d$TRT),
-    SR = afri_normalize_sr(d$SR), Value = as.numeric(d[[response]]), stringsAsFactors = FALSE)
-  if (!is.null(period_col)) ans$Period <- afri_period_label(d[[period_col]])
-  if (!is.null(subject_col)) ans$Animal <- as.character(d[[subject_col]])
-  ans <- ans[stats::complete.cases(ans) & is.finite(ans$Value), , drop = FALSE]
-  ord <- do.call(order, ans[, setdiff(names(ans), "Value"), drop = FALSE])
-  ans <- ans[ord, , drop = FALSE]
-  rownames(ans) <- NULL
-  ans
+
+  if (family_rule == "gamma_log") {
+    if (has_negative) {
+      return(list(
+        distribution = "Gaussian", link = "identity",
+        note = "Gamma was prespecified, but negative observations make Gamma invalid; Gaussian used instead."
+      ))
+    }
+    if (has_zero) {
+      return(list(
+        distribution = "Tweedie", link = "log",
+        note = "Gamma was prespecified, but zero observations are present; Tweedie log-link used instead."
+      ))
+    }
+    return(list(
+      distribution = "Gamma", link = "log",
+      note = "Strictly positive response; Gamma log-link prespecified."
+    ))
+  }
+
+  if (family_rule == "nonnegative_auto") {
+    if (has_negative) {
+      return(list(
+        distribution = "Gaussian", link = "identity",
+        note = "Negative values are present, so a positive-only family is invalid."
+      ))
+    }
+    if (has_zero) {
+      return(list(
+        distribution = "Tweedie", link = "log",
+        note = "Zero-positive continuous response; Tweedie log-link used."
+      ))
+    }
+    return(list(
+      distribution = "Gamma", link = "log",
+      note = "Strictly positive continuous response; Gamma log-link used."
+    ))
+  }
+
+  if (family_rule == "auto_positive") {
+    if (has_negative) {
+      return(list(
+        distribution = "Gaussian", link = "identity",
+        note = "Negative observations prevent Gamma/Tweedie positive-response modeling."
+      ))
+    }
+    if (has_zero) {
+      return(list(
+        distribution = "AUTO_GAUSSIAN_TWEEDIE", link = NA_character_,
+        note = "Zeros present: Gaussian and Tweedie candidates will be compared by AIC."
+      ))
+    }
+    return(list(
+      distribution = "AUTO_GAUSSIAN_GAMMA", link = NA_character_,
+      note = "Strictly positive response: Gaussian and Gamma candidates will be compared by AIC."
+    ))
+  }
+
+  stop("Unknown family rule: ", family_rule)
 }
-afri_same_analysis_rows <- function(d1, r1, d2, r2, p1 = NULL, p2 = NULL, s1 = NULL, s2 = NULL) {
-  tryCatch(isTRUE(all.equal(afri_analysis_signature(d1, r1, p1, s1),
-    afri_analysis_signature(d2, r2, p2, s2), tolerance = 1e-10, check.attributes = FALSE)),
-    error = function(e) FALSE)
+
+afri_glmmtmb_family <- function(distribution) {
+  switch(
+    distribution,
+    "Gaussian" = stats::gaussian(link = "identity"),
+    "Gamma" = stats::Gamma(link = "log"),
+    "Tweedie" = glmmTMB::tweedie(link = "log"),
+    stop("Unsupported glmmTMB distribution: ", distribution)
+  )
 }
-afri_model_counts <- function(d, unit) {
-  tibble::tibble(N_obs = nrow(d),
-    N_animals = if (unit == "animal") dplyr::n_distinct(d$Animal_Year_ID) else NA_integer_,
-    N_pastures = dplyr::n_distinct(d$Pasture), N_years = dplyr::n_distinct(d$Year),
-    N_pasture_years = dplyr::n_distinct(d$Pasture_Year))
+```
+
+
+```{r canonical-season-model-functions, message=FALSE, warning=FALSE}
+afri_valid_random_term <- function(d, col) {
+  col %in% names(d) &&
+    dplyr::n_distinct(d[[col]]) > 1L &&
+    dplyr::n_distinct(d[[col]]) < nrow(d)
 }
-# Normalize synonymous period columns and interaction ordering before comparing
-# actual fitted terms. The EMM prediction grid is not a model-term specification.
-afri_fixed_term_signature <- function(model) {
-  terms <- attr(stats::terms(lme4::nobars(stats::formula(model))), "term.labels")
-  sort(vapply(strsplit(terms, ":", fixed = TRUE), function(parts) {
-    parts[parts %in% c("Period", "RGP", "RotationPeriod")] <- "Period"
-    paste(sort(parts), collapse = ":")
-  }, character(1)))
+
+afri_table1_responses <- c(
+  "Grazing_h",
+  "Resting_h",
+  "Traveling_h",
+  "mean_DDT_day"
+)
+
+afri_table2_animal_responses <- c(
+  "CH4_Mean_g_d",
+  "CO2_Mean_g_d",
+  "Smooth_Period_ADG",
+  "Shrunk_Initial_BW_kg",
+  "Shrunk_Final_BW_kg"
+)
+
+afri_table2_pasture_responses <- c(
+  "CH4_g_per_active_ha_whole_season",
+  "CO2_g_per_active_ha_whole_season",
+  "active_ha_whole_season",
+  "LWG_kg_per_active_ha_whole_season"
+)
+
+afri_is_requested_table2_response <- function(response) {
+  response %in% c(
+    afri_table2_animal_responses,
+    afri_table2_pasture_responses
+  )
 }
-afri_requested_fixed_terms <- function(scale) {
-  sort(c("TRT", "SR", "SR:TRT", if (scale == "period")
-    c("Period", "Period:TRT", "Period:SR", "Period:SR:TRT")))
+
+afri_season_formula_text <- function(d, response, unit) {
+  # Requested hierarchy for every season-level canonical model:
+  # random Year + physical Pasture only. Pasture_Year is not a random intercept.
+  # Different steers were used each year, so no season-level animal/SEID random
+  # intercept is added.
+  paste(
+    response,
+    "~ TRT * SR + (1 | Year) + (1 | Pasture)"
+  )
 }
-afri_fit_one_response <- function(spec_row, fits) {
-  key <- spec_row$Dataset_key[[1L]]
-  response <- spec_row$Response[[1L]]
-  scale <- spec_row$Scale[[1L]]
-  unit <- spec_row$Unit[[1L]]
-  subject <- spec_row$Subject[[1L]]
-  fit <- list(dataset_key = key, dataset = spec_row$Dataset[[1L]], response = response,
-    table = spec_row$Table[[1L]], scale = scale, unit = unit,
-    distribution = "Gaussian", link = "identity", engine = "lme4::lmer / lmerTest",
-    source = "new retained model", export_owner = "06_Statistical_Analysis",
-    correlation_selection = "Requested Year/Pasture-only Gaussian LMM; no covariance/family selection.",
-    correlation_limitation = if (scale == "period" && unit == "animal") {
-      "Requested Year/Pasture intercepts omit animal and pasture-year intercepts; additional within-animal, pasture-year, or serial correlation may remain."
-    } else if (scale == "period") {
-      "Requested Year/Pasture intercepts omit a pasture-year intercept and serial residual covariance; additional repeated pasture-year correlation may remain."
-    } else if (key == "table1") {
-      "Preserved monthly reference Year/Pasture model omits an animal intercept; additional within-animal monthly correlation may remain."
-    } else "Requested Year/Pasture intercepts; the small number of observed years limits year-variance precision.")
-  if (key == "table1") {
-    # These are the published reference objects: preserve their data/models/results.
-    m <- statistical_reference_models[[response]]
-    data <- statistical_reference_data[[response]]
-    fitted_response <- if (response == "mean_DDT_day") response else "mean_hours"
-    mf <- stats::model.frame(m)
-    used <- match(rownames(mf), rownames(as.data.frame(data)))
-    if (anyNA(used)) stop(response, ": cannot identify rows of the preserved reference model.")
-    data <- as.data.frame(data)[used, , drop = FALSE]
-    data$Year <- factor(data$Year)
-    data$Pasture <- factor(afri_normalize_pasture(data$Pasture))
-    data$TRT <- factor(afri_normalize_trt(data$TRT), levels = c("Continuous", "Rotational"))
-    data$SR <- factor(afri_normalize_sr(data$SR), levels = c("Light", "Moderate", "Heavy"))
-    data$Pasture_Year <- interaction(data$Pasture, data$Year, drop = TRUE)
-    data$Animal_Year_ID <- interaction(data$Year, data$Pasture, data$REAL_ID, drop = TRUE)
-    fit$model <- m
-    fit$data <- data
-    fit$fitted_response <- fitted_response
-    fit$source <- "Preserved Sections 1–5.5 reference model/results"
-    # The retained Table 1 occupies the first results-workbook sheet.
-    # Its reference-model RDS export remains owned by the original behavior section.
-    fit$export_owner <- "06_Statistical_Analysis/01_Tables/AFRI_Statistical_Results.xlsx"
-    result <- table1_results[[statistical_reference_labels[[response]]]]
-    if (is.null(result)) stop("Missing retained Table 1 result for ", response)
-    fit$inference <- list(emmeans = result$emm_posthoc, cld = result$emm_posthoc,
-      anova = result$anova, emm = statistical_reference_emm_objects[[response]],
-      pairs = data.frame(), df_method = "Preserved reference tests; see test source")
-    fit$repeated_structure <- "(1 | Year) + (1 | Pasture)"
+
+afri_season_structure_text <- function(response, unit) {
+  dplyr::case_when(
+    response %in% afri_table1_responses ~
+      "Table 1: (1 | Year) + (1 | Pasture); different steers each year; no animal/REAL_ID random intercept, Period, or AR(1)",
+    response %in% afri_table2_animal_responses ~
+      "Table 2 animal response: (1 | Year) + (1 | Pasture); different steers each year; no SEID random intercept, Period, Pasture_Year random intercept, or AR(1)",
+    response %in% afri_table2_pasture_responses ~
+      "Table 2 pasture response: random Year + Pasture intercepts only; one whole-season response per pasture-year; no Pasture_Year random intercept, Period, or AR(1)",
+    unit == "animal" ~
+      "Season-level animal response: (1 | Year) + (1 | Pasture); different steers each year; no across-year animal or Pasture_Year random intercept",
+    TRUE ~
+      "Season-level pasture response: random intercepts for Year and Pasture only; no Pasture_Year random intercept"
+  )
+}
+
+afri_fit_season_gaussian <- function(d, response, unit) {
+  formula_text <- afri_season_formula_text(d, response, unit)
+  has_random <- stringr::str_detect(formula_text, "\\|")
+
+  for (group_var in c("Year", "Pasture")) {
+    if (!afri_valid_random_term(d, group_var)) {
+      warning(
+        response,
+        ": requested (1 | ", group_var,
+        ") term has no within-group replication or is otherwise weakly estimable; ",
+        "retain the requested model but review singularity/random-effect diagnostics before interpretation."
+      )
+    }
+  }
+
+  if (has_random) {
+    fit <- lmerTest::lmer(
+      stats::as.formula(formula_text),
+      data = d,
+      REML = TRUE,
+      control = lme4::lmerControl(
+        optimizer = "bobyqa",
+        optCtrl = list(maxfun = 200000),
+        check.rankX = "message+drop.cols",
+        check.nobs.vs.nlev = "ignore",
+        check.nobs.vs.nRE = "ignore"
+      )
+    )
+    engine <- "lmerTest::lmer"
   } else {
-    data <- afri_prepare_model_data(analysis_datasets[[key]], response, scale, unit, subject)
-    fixed <- if (scale == "period") "TRT * SR * Period" else "TRT * SR"
-    random <- "(1 | Year) + (1 | Pasture)"
-    formula <- stats::as.formula(paste(response, "~", fixed, "+", random))
-    fit$data <- data
-    fit$fitted_response <- response
-    fit$repeated_structure <- random
-    if (key == "season_pasture" && response %in% c("mean_Shrunk_Initial_BW_kg",
-        "mean_Shrunk_Final_BW_kg", "mean_Whole_Season_Smooth_ADG_kg_day",
-        "whole_season_animal_avg_CH4_g_day", "whole_season_animal_avg_CO2_g_day")) {
-      fit$source <- "Prespecified pasture-mean aggregation sensitivity; observation unit and weighting differ from animal-level results."
+    fit <- stats::lm(stats::as.formula(formula_text), data = d)
+    engine <- "stats::lm"
+  }
+
+  list(
+    model = fit,
+    engine = engine,
+    formula = formula_text,
+    distribution = "Gaussian",
+    link = "identity",
+    repeated_structure = afri_season_structure_text(response, unit),
+    correlation_selection = "Not applicable: one response value per analysis subject at the season scale.",
+    candidate_aic = tibble::tibble()
+  )
+}
+
+afri_fit_season_glmmtmb <- function(d, response, unit, distribution) {
+  formula_text <- afri_season_formula_text(d, response, unit)
+  fit <- glmmTMB::glmmTMB(
+    stats::as.formula(formula_text),
+    data = d,
+    family = afri_glmmtmb_family(distribution)
+  )
+
+  list(
+    model = fit,
+    engine = "glmmTMB::glmmTMB",
+    formula = formula_text,
+    distribution = distribution,
+    link = ifelse(distribution == "Gaussian", "identity", "log"),
+    repeated_structure = afri_season_structure_text(response, unit),
+    correlation_selection = "Not applicable: one response value per analysis subject at the season scale.",
+    candidate_aic = tibble::tibble()
+  )
+}
+
+afri_fit_season_auto_positive <- function(d, response, unit, resolved) {
+  formula_text <- afri_season_formula_text(d, response, unit)
+
+  gaussian_candidate <- tryCatch(
+    glmmTMB::glmmTMB(
+      stats::as.formula(formula_text),
+      data = d,
+      family = stats::gaussian(link = "identity")
+    ),
+    error = function(e) NULL
+  )
+
+  positive_distribution <- if (
+    identical(resolved$distribution, "AUTO_GAUSSIAN_TWEEDIE")
+  ) "Tweedie" else "Gamma"
+
+  positive_candidate <- tryCatch(
+    glmmTMB::glmmTMB(
+      stats::as.formula(formula_text),
+      data = d,
+      family = afri_glmmtmb_family(positive_distribution)
+    ),
+    error = function(e) NULL
+  )
+
+  candidate_aic <- tibble::tibble(
+    Candidate = c("Gaussian", positive_distribution),
+    AIC = c(
+      if (is.null(gaussian_candidate)) NA_real_ else stats::AIC(gaussian_candidate),
+      if (is.null(positive_candidate)) NA_real_ else stats::AIC(positive_candidate)
+    )
+  )
+
+  choose_positive <-
+    !is.null(positive_candidate) &&
+    (is.null(gaussian_candidate) ||
+       stats::AIC(positive_candidate) + CANONICAL_AR1_AIC_IMPROVEMENT <
+         stats::AIC(gaussian_candidate))
+
+  if (choose_positive) {
+    out <- list(
+      model = positive_candidate,
+      engine = "glmmTMB::glmmTMB",
+      formula = formula_text,
+      distribution = positive_distribution,
+      link = "log",
+      repeated_structure = afri_season_structure_text(response, unit),
+      correlation_selection = paste0(
+        positive_distribution,
+        " selected over Gaussian because AIC improved by at least ",
+        CANONICAL_AR1_AIC_IMPROVEMENT,
+        "."
+      ),
+      candidate_aic = candidate_aic
+    )
+  } else {
+    out <- afri_fit_season_gaussian(d, response, unit)
+    out$correlation_selection <- paste0(
+      "Gaussian retained because the positive-family candidate did not improve AIC by at least ",
+      CANONICAL_AR1_AIC_IMPROVEMENT,
+      "."
+    )
+    out$candidate_aic <- candidate_aic
+  }
+
+  out
+}
+```
+
+
+```{r canonical-period-model-functions, message=FALSE, warning=FALSE}
+afri_period_formula_text <- function(d, response, unit, use_ar1 = FALSE) {
+  random_terms <- character()
+
+  # Requested hierarchy for every RGP/period model.
+  if (afri_valid_random_term(d, "Year")) {
+    random_terms <- c(random_terms, "(1 | Year)")
+  }
+  if (afri_valid_random_term(d, "Pasture")) {
+    random_terms <- c(random_terms, "(1 | Pasture)")
+  }
+  if (unit == "animal") {
+    # Different steers are used each year. Animal_Year_ID is therefore the repeated
+    # RGP subject only within the corresponding study year.
+    if (use_ar1 && "Animal_Year_ID" %in% names(d)) {
+      random_terms <- c(random_terms, "ar1(Period + 0 | Animal_Year_ID)")
+    } else if (afri_valid_random_term(d, "Animal_Year_ID")) {
+      random_terms <- c(random_terms, "(1 | Animal_Year_ID)")
     }
-    fit$model <- NULL
-    # Whole-window spline ADG has already been fitted and inferred in Section 6.
-    if (key == "table2_adg" && response == "Smooth_Period_ADG") {
-      if (!afri_same_analysis_rows(data, response, adg_model_data, response, s1 = "SEID", s2 = "SEID")) {
-        stop("Whole-window ADG rows differ from the retained Section 6 model; resolve the inconsistency.")
-      }
-      fit$model <- smooth_adg_model
-      fit$inference <- smooth_adg_inference
-      fit$source <- "Retained Section 6 whole-window spline ADG model"
-      fit$export_owner <- "02_Grazing_BW_AFRI"
-    }
-    # Section 6 is authoritative for these matched-grid area questions. A
-    # missing/failed source or unequal observation rows requires reconciliation;
-    # it must never fall through to a competing model with different settings.
-    area_key <- switch(response,
-      active_ha_all_pasture = "ALL_PASTURE_GRAZING__RGP",
-      active_ha_inside_rgp = "INSIDE_RGP_GRAZING__RGP",
-      active_ha_whole_season = "WHOLE_SEASON_GRAZING__Season", NULL)
-    if (is.null(fit$model) && !is.null(area_key)) {
-      if (!exists("pasture_use_models", inherits = TRUE) || !is.list(pasture_use_models)) {
-        stop(area_key, ": required Section 6 pasture_use_models registry is unavailable; no replacement area model fitted.")
-      }
-      area <- pasture_use_models[[area_key]]
-      if (is.null(area)) {
-        stop(area_key, ": required Section 6 area-model entry is missing; no replacement area model fitted.")
-      }
-      if (!inherits(area$model, "lmerMod")) {
-        source_note <- if (!is.null(area$audit$Note)) {
-          paste(unique(stats::na.omit(as.character(area$audit$Note))), collapse = "; ")
-        } else ""
-        stop(area_key, ": retained Section 6 Gaussian area model is unavailable or failed",
-          if (nzchar(source_note)) paste0(": ", source_note) else ".",
-          " No replacement area model fitted.")
-      }
-      pd <- if (scale == "period") "Period" else NULL
-      pa <- if (scale == "period") "RGP" else NULL
-      if (!afri_same_analysis_rows(data, response, area$data, "Active_ha", pd, pa)) {
-        stop(area_key, ": integrated area rows/values differ from the retained Section 6 model; reconcile the datasets before inference. No replacement area model fitted.")
-      }
-      fit$model <- area$model
-      fit$inference <- area$inference
-      fit$diagnostics <- area$diagnostics
-      fit$source <- paste("Retained Section 6 matched-grid area model:", area_key)
-      fit$export_owner <- "02_Grazing_BW_AFRI"
-      fit$period_column <- pa
-    }
-    # Pasture-period gas means originate in the existing GreenFeed mean table.
-    # They retain the original GF measurement window, which may differ from the
-    # GPS/BW window. Matching response rows AND window provenance permits reuse;
-    # the land-productivity ratios remain separate scientific questions.
-    period_gas <- switch(response, CH4_g_animal_day = "CH4", CO2_g_animal_day = "CO2", NULL)
-    if (is.null(fit$model) && key == "period_pasture" && !is.null(period_gas) &&
-        exists("gf_rotation_inference", inherits = TRUE)) {
-      source_data <- if (period_gas == "CH4") ch4_rotation_model_data else co2_rotation_model_data
-      source_response <- paste0(period_gas, "_g_d")
-      source_model <- if (period_gas == "CH4") ch4_rotation_year_random_model else co2_rotation_year_random_model
-      original <- analysis_datasets[[key]]
-      windows_match_source <- FALSE
-      if (exists("rgp_gas_windows", inherits = TRUE) &&
-          all(c("GF_start", "GF_end", "Rotation_Period", "Pasture_ID") %in% names(original))) {
-        used_windows <- original |>
-          dplyr::filter(is.finite(.data[[response]])) |>
-          dplyr::transmute(Year = as.character(Year), Pasture_ID = as.character(Pasture_ID),
-            Rotation_Period = as.character(Rotation_Period), GF_start = as.Date(GF_start), GF_end = as.Date(GF_end))
-        source_windows <- rgp_gas_windows |>
-          dplyr::transmute(Year = as.character(Year), Pasture_ID = as.character(Pasture_ID),
-            Rotation_Period = as.character(Rotation_Period),
-            Source_start = as.Date(GF_start), Source_end = as.Date(GF_end))
-        compared <- dplyr::left_join(used_windows, source_windows,
-          by = c("Year", "Pasture_ID", "Rotation_Period"), relationship = "many-to-one")
-        windows_match_source <- nrow(compared) > 0L &&
-          all(!is.na(compared$GF_start) & !is.na(compared$GF_end) &
-              !is.na(compared$Source_start) & !is.na(compared$Source_end) &
-              compared$GF_start == compared$Source_start & compared$GF_end == compared$Source_end)
-      }
-      rows_match_source <- afri_same_analysis_rows(data, response, source_data,
-        source_response, "Period", "RotationPeriod")
-      if (rows_match_source && !windows_match_source) stop(
-        "Existing GreenFeed mean model has matching response rows but GF window provenance is unavailable or conflicting; no duplicate model fitted.")
-      if (windows_match_source && rows_match_source) {
-        fit$model <- source_model
-        fit$inference <- gf_rotation_inference[[period_gas]]
-        fit$source <- paste("Retained GreenFeed pasture-period mean model:", period_gas,
-          "; matching mean observations and GF measurement-window provenance.")
-        fit$export_owner <- "03_Grazing_GreenFeed_AFRI"
-        fit$period_column <- "RotationPeriod"
+  } else if (use_ar1 && "Pasture_Year" %in% names(d)) {
+    # Evaluate serial RGP correlation within the annual pasture sequence only.
+    # Pasture_Year is a sequence identifier here, not a random intercept.
+    random_terms <- c(random_terms, "ar1(Period + 0 | Pasture_Year)")
+  }
+
+  rhs <- "TRT * SR * Period"
+  if (length(random_terms)) {
+    rhs <- paste(rhs, paste(unique(random_terms), collapse = " + "), sep = " + ")
+  }
+
+  paste(response, "~", rhs)
+}
+
+afri_glmmtmb_converged <- function(model) {
+  if (is.null(model)) return(FALSE)
+  pd_hess <- tryCatch(isTRUE(model$sdr$pdHess), error = function(e) FALSE)
+  conv_code <- tryCatch(model$fit$convergence, error = function(e) 1L)
+  pd_hess && identical(as.integer(conv_code), 0L)
+}
+
+afri_fit_period_model <- function(d, response, unit, distribution) {
+  formula_ri <- afri_period_formula_text(d, response, unit, use_ar1 = FALSE)
+  formula_ar1 <- afri_period_formula_text(d, response, unit, use_ar1 = TRUE)
+
+  family_obj <- afri_glmmtmb_family(distribution)
+
+  fit_ri <- tryCatch(
+    glmmTMB::glmmTMB(
+      stats::as.formula(formula_ri),
+      data = d,
+      family = family_obj
+    ),
+    error = function(e) NULL
+  )
+
+  repeated_group <- if (unit == "animal") "Animal_Year_ID" else "Pasture_Year"
+  repeated_counts <- if (repeated_group %in% names(d)) {
+    d %>%
+      dplyr::count(.data[[repeated_group]], name = "n_periods")
+  } else {
+    tibble::tibble(n_periods = integer())
+  }
+
+  ar1_eligible <- nrow(repeated_counts) > 0L &&
+    any(repeated_counts$n_periods >= 3L) &&
+    dplyr::n_distinct(d$Period) >= 3L
+
+  fit_ar1 <- if (ar1_eligible) {
+    tryCatch(
+      glmmTMB::glmmTMB(
+        stats::as.formula(formula_ar1),
+        data = d,
+        family = family_obj
+      ),
+      error = function(e) NULL
+    )
+  } else {
+    NULL
+  }
+
+  ri_ok <- afri_glmmtmb_converged(fit_ri)
+  ar1_ok <- afri_glmmtmb_converged(fit_ar1)
+
+  aic_ri <- if (ri_ok) stats::AIC(fit_ri) else NA_real_
+  aic_ar1 <- if (ar1_ok) stats::AIC(fit_ar1) else NA_real_
+
+  choose_ar1 <- ar1_ok &&
+    (!ri_ok || aic_ar1 + CANONICAL_AR1_AIC_IMPROVEMENT < aic_ri)
+
+  final_model <- if (choose_ar1) fit_ar1 else fit_ri
+  final_formula <- if (choose_ar1) formula_ar1 else formula_ri
+
+  if (is.null(final_model)) {
+    stop(response, ": both random-intercept and AR(1) period models failed.")
+  }
+
+  selection_note <- if (choose_ar1) {
+    paste0(
+      "AR(1) retained within ", repeated_group,
+      ": converged and improved AIC by at least ",
+      CANONICAL_AR1_AIC_IMPROVEMENT,
+      " relative to the random-intercept model."
+    )
+  } else if (!ar1_eligible) {
+    paste0(
+      "AR(1) was not estimable because too few repeated periods were available within ",
+      repeated_group, "; random-intercept model retained."
+    )
+  } else if (!ar1_ok) {
+    "AR(1) candidate failed convergence/positive-definite Hessian; random-intercept model retained."
+  } else {
+    paste0(
+      "Random-intercept model retained because AR(1) did not improve AIC by at least ",
+      CANONICAL_AR1_AIC_IMPROVEMENT,
+      "."
+    )
+  }
+
+  list(
+    model = final_model,
+    engine = "glmmTMB::glmmTMB",
+    formula = final_formula,
+    distribution = distribution,
+    link = ifelse(distribution == "Gaussian", "identity", "log"),
+    repeated_structure = if (unit == "animal") {
+      if (choose_ar1) {
+        "(1 | Year) + (1 | Pasture) + AR(1) across RGP1-RGP5 within Animal_Year_ID; different steers each year"
       } else {
-        fit$source <- "Period gas mean sensitivity: complete response rows or GF window provenance differ from the retained GreenFeed primary analysis."
+        "(1 | Year) + (1 | Pasture) + (1 | Animal_Year_ID); different steers each year"
       }
-    }
-    # Gas columns joined to endpoint data are aliases only when their keys and
-    # values match; otherwise retain an explicitly stated subset sensitivity.
-    gas_alias <- switch(response, Whole_Season_CH4_g_day = "CH4_Mean_g_d",
-      Whole_Season_CO2_g_day = "CO2_Mean_g_d", NULL)
-    if (is.null(fit$model) && key == "shrunk_season" && !is.null(gas_alias)) {
-      prior <- fits[[afri_model_id("dressler", gas_alias)]]
-      if (!is.null(prior) && !is.null(prior$model) &&
-          afri_same_analysis_rows(data, response, prior$data, gas_alias, s1 = "SEID", s2 = "SEID")) {
-        fit$model <- prior$model
-        fit$inference <- prior$inference
-        fit$diagnostics <- prior$diagnostics
-        fit$source <- paste("Equivalent joined response; reuses", afri_model_id("dressler", gas_alias))
-        fit$export_owner <- prior$export_owner
-        fit$reuse_model_id <- afri_model_id("dressler", gas_alias)
+    } else {
+      if (choose_ar1) {
+        "(1 | Year) + (1 | Pasture) + AR(1) across RGP1-RGP5 within Pasture_Year (sequence ID only)"
       } else {
-        fit$source <- "Endpoint-linked subset sensitivity; observation keys differ from full Dressler animal-season analysis."
+        "(1 | Year) + (1 | Pasture); RGPs repeated within pasture-year; Pasture_Year is not a random intercept"
       }
+    },
+    correlation_selection = selection_note,
+    candidate_aic = tibble::tibble(
+      Candidate = c("Random intercept", "AR(1)"),
+      AIC = c(aic_ri, aic_ar1),
+      Converged = c(ri_ok, ar1_ok)
+    )
+  )
+}
+```
+
+
+
+```{r canonical-robust-model-fitting-repair, message=FALSE, warning=FALSE}
+# BLOCK A — ROBUST MODEL FITTING
+# Place before: ### 9.10.4 Fit one response and all responses
+# ============================================================
+
+afri_glmmtmb_converged <- function(model) {
+  if (is.null(model)) return(FALSE)
+
+  pd_hess <- tryCatch(
+    isTRUE(model$sdr$pdHess),
+    error = function(e) FALSE
+  )
+
+  conv_code <- tryCatch(
+    as.integer(model$fit$convergence),
+    error = function(e) 1L
+  )
+
+  isTRUE(pd_hess) &&
+    length(conv_code) == 1L &&
+    is.finite(conv_code) &&
+    conv_code == 0L
+}
+
+
+afri_try_glmmtmb <- function(formula, data, family) {
+
+  fit_default <- tryCatch(
+    glmmTMB::glmmTMB(
+      formula = formula,
+      data = data,
+      family = family,
+      control = glmmTMB::glmmTMBControl(
+        optCtrl = list(
+          iter.max = 100000L,
+          eval.max = 100000L
+        )
+      )
+    ),
+    error = function(e) NULL
+  )
+
+  if (afri_glmmtmb_converged(fit_default)) {
+    return(fit_default)
+  }
+
+  fit_bfgs <- tryCatch(
+    glmmTMB::glmmTMB(
+      formula = formula,
+      data = data,
+      family = family,
+      control = glmmTMB::glmmTMBControl(
+        optimizer = stats::optim,
+        optArgs = list(
+          method = "BFGS"
+        )
+      )
+    ),
+    error = function(e) NULL
+  )
+
+  if (afri_glmmtmb_converged(fit_bfgs)) {
+    return(fit_bfgs)
+  }
+
+  NULL
+}
+
+
+# ------------------------------------------------------------
+# FINAL RANDOM-INTERCEPT RULE FOR SEASON MODELS:
+#   (1 | Year) + (1 | Pasture)
+# Pasture_Year is deliberately NOT fitted as a random intercept, regardless of
+# replication. It may remain in the prepared data only as a descriptive/period
+# identifier for other analyses.
+# ------------------------------------------------------------
+
+afri_season_formula_text <- function(
+    d,
+    response,
+    unit
+) {
+
+  random_terms <- character(0)
+
+  if (afri_valid_random_term(d, "Year")) {
+    random_terms <- c(
+      random_terms,
+      "(1 | Year)"
+    )
+  }
+
+  if (afri_valid_random_term(d, "Pasture")) {
+    random_terms <- c(
+      random_terms,
+      "(1 | Pasture)"
+    )
+  }
+
+  rhs <- "TRT * SR"
+
+  if (length(random_terms) > 0L) {
+    rhs <- paste(
+      rhs,
+      paste(
+        unique(random_terms),
+        collapse = " + "
+      ),
+      sep = " + "
+    )
+  }
+
+  paste(
+    response,
+    "~",
+    rhs
+  )
+}
+
+
+
+# ------------------------------------------------------------
+# Gaussian season model using only the prespecified Year and Pasture random
+# intercepts when estimable. Pasture_Year is never added as a random intercept.
+# ------------------------------------------------------------
+
+afri_fit_season_gaussian <- function(
+    d,
+    response,
+    unit
+) {
+
+  formula_text <-
+    afri_season_formula_text(
+      d,
+      response,
+      unit
+    )
+
+  has_random <-
+    stringr::str_detect(
+      formula_text,
+      "\\|"
+    )
+
+  if (has_random) {
+
+    fit <-
+      lmerTest::lmer(
+        stats::as.formula(
+          formula_text
+        ),
+        data = d,
+        REML = TRUE,
+        control =
+          lme4::lmerControl(
+            optimizer = "bobyqa",
+            optCtrl =
+              list(
+                maxfun = 200000
+              ),
+            check.rankX =
+              "message+drop.cols",
+            check.nobs.vs.nlev =
+              "ignore",
+            check.nobs.vs.nRE =
+              "ignore"
+          )
+      )
+
+    engine <-
+      "lmerTest::lmer"
+
+  } else {
+
+    fit <-
+      stats::lm(
+        stats::as.formula(
+          formula_text
+        ),
+        data = d
+      )
+
+    engine <-
+      "stats::lm"
+  }
+
+  list(
+    model = fit,
+    engine = engine,
+    formula = formula_text,
+    distribution = "Gaussian",
+    link = "identity",
+    repeated_structure =
+      paste0(
+        "Final fitted formula: ",
+        formula_text
+      ),
+    correlation_selection =
+      paste0(
+        "Season-level Gaussian model using only random-effect ",
+        "grouping terms with replication."
+      ),
+    candidate_aic =
+      tibble::tibble()
+  )
+}
+
+
+afri_fit_season_glmmtmb <- function(
+    d,
+    response,
+    unit,
+    distribution
+) {
+
+  formula_text <- afri_season_formula_text(
+    d,
+    response,
+    unit
+  )
+
+  formula_obj <- stats::as.formula(
+    formula_text
+  )
+
+  requested_fit <- afri_try_glmmtmb(
+    formula = formula_obj,
+    data = d,
+    family = afri_glmmtmb_family(
+      distribution
+    )
+  )
+
+  if (!is.null(requested_fit)) {
+
+    return(
+      list(
+        model = requested_fit,
+        engine = "glmmTMB::glmmTMB",
+        formula = formula_text,
+        distribution = distribution,
+        link = ifelse(
+          distribution == "Gaussian",
+          "identity",
+          "log"
+        ),
+        repeated_structure =
+          paste0(
+            "Final fitted formula: ",
+            formula_text
+          ),
+        correlation_selection =
+          paste0(
+            distribution,
+            " model converged with a positive-definite Hessian."
+          ),
+        candidate_aic =
+          tibble::tibble(
+            Candidate = distribution,
+            AIC = stats::AIC(requested_fit),
+            Converged = TRUE
+          )
+      )
+    )
+  }
+
+  # ----------------------------------------------------------
+  # Same fixed-effect structure; Gaussian fallback only when
+  # the requested positive-family model is numerically invalid.
+  # ----------------------------------------------------------
+
+  gaussian_fallback <- afri_fit_season_gaussian(
+    d,
+    response,
+    unit
+  )
+
+  gaussian_fallback$repeated_structure <-
+    paste0("Final fitted formula: ", gaussian_fallback$formula)
+
+  gaussian_fallback$correlation_selection <-
+    paste0(
+      distribution,
+      " model did not yield a converged positive-definite ",
+      "fit; Gaussian fallback with the same fixed-effect and ",
+      "estimable random-effect structure was used."
+    )
+
+  gaussian_fallback$candidate_aic <-
+    tibble::tibble(
+      Candidate = c(
+        distribution,
+        "Gaussian fallback"
+      ),
+      AIC = c(
+        NA_real_,
+        suppressWarnings(
+          tryCatch(
+            stats::AIC(
+              gaussian_fallback$model
+            ),
+            error = function(e) NA_real_
+          )
+        )
+      ),
+      Converged = c(
+        FALSE,
+        TRUE
+      )
+    )
+
+  gaussian_fallback
+}
+
+
+afri_fit_season_auto_positive <- function(
+    d,
+    response,
+    unit,
+    resolved
+) {
+
+  formula_text <- afri_season_formula_text(
+    d,
+    response,
+    unit
+  )
+
+  formula_obj <- stats::as.formula(
+    formula_text
+  )
+
+  positive_distribution <-
+    if (
+      identical(
+        resolved$distribution,
+        "AUTO_GAUSSIAN_TWEEDIE"
+      )
+    ) {
+      "Tweedie"
+    } else {
+      "Gamma"
     }
-    if (is.null(fit$model)) fit$model <- afri_fit_lmm(formula, data,
-      question_id = afri_model_id(key, response), REML = TRUE)
-    if (is.null(fit$inference)) fit$inference <- afri_inference(fit$model,
-      emm_specs = if (scale == "period") ~ TRT * SR * Period else ~ TRT * SR)
+
+
+  gaussian_candidate <- afri_try_glmmtmb(
+    formula = formula_obj,
+    data = d,
+    family = stats::gaussian(
+      link = "identity"
+    )
+  )
+
+
+  positive_candidate <- afri_try_glmmtmb(
+    formula = formula_obj,
+    data = d,
+    family = afri_glmmtmb_family(
+      positive_distribution
+    )
+  )
+
+
+  gaussian_ok <-
+    !is.null(
+      gaussian_candidate
+    )
+
+  positive_ok <-
+    !is.null(
+      positive_candidate
+    )
+
+
+  gaussian_aic <-
+    if (gaussian_ok) {
+      suppressWarnings(
+        stats::AIC(
+          gaussian_candidate
+        )
+      )
+    } else {
+      NA_real_
+    }
+
+
+  positive_aic <-
+    if (positive_ok) {
+      suppressWarnings(
+        stats::AIC(
+          positive_candidate
+        )
+      )
+    } else {
+      NA_real_
+    }
+
+
+  candidate_aic <-
+    tibble::tibble(
+      Candidate = c(
+        "Gaussian",
+        positive_distribution
+      ),
+      AIC = c(
+        gaussian_aic,
+        positive_aic
+      ),
+      Converged = c(
+        gaussian_ok,
+        positive_ok
+      )
+    )
+
+
+  choose_positive <-
+    positive_ok &&
+    (
+      !gaussian_ok ||
+      (
+        is.finite(positive_aic) &&
+        is.finite(gaussian_aic) &&
+        positive_aic +
+          CANONICAL_AR1_AIC_IMPROVEMENT <
+          gaussian_aic
+      )
+    )
+
+
+  if (choose_positive) {
+
+    return(
+      list(
+        model =
+          positive_candidate,
+
+        engine =
+          "glmmTMB::glmmTMB",
+
+        formula =
+          formula_text,
+
+        distribution =
+          positive_distribution,
+
+        link =
+          "log",
+
+        repeated_structure =
+          paste0(
+            "Final fitted formula: ",
+            formula_text
+          ),
+
+        correlation_selection =
+          paste0(
+            positive_distribution,
+            " selected over Gaussian among converged ",
+            "positive-definite candidate models."
+          ),
+
+        candidate_aic =
+          candidate_aic
+      )
+    )
   }
-  # A later chunk must not silently reuse an old fit from before the requested
-  # structure change. Re-run the source model chunks if this audit fails.
-  fitted_groups <- names(lme4::ranef(fit$model))
-  normalized_groups <- ifelse(fitted_groups == "YearFactor", "Year",
-    ifelse(fitted_groups == "Pasture_ID", "Pasture", fitted_groups))
-  if (!identical(sort(normalized_groups), c("Pasture", "Year"))) {
-    stop(response, ": retained source model does not match the requested Year/Pasture-only random structure; rerun its source model chunks. No competing model fitted.")
+
+
+  # ----------------------------------------------------------
+  # Gaussian is the selected/fallback family.
+  # Fit with the existing Gaussian mixed-model function so
+  # lmerTest/Kenward-Roger inference remains available.
+  # ----------------------------------------------------------
+
+  gaussian_final <-
+    afri_fit_season_gaussian(
+      d,
+      response,
+      unit
+    )
+
+
+  gaussian_final$repeated_structure <-
+    paste0("Final fitted formula: ", gaussian_final$formula)
+
+  gaussian_final$correlation_selection <-
+    if (gaussian_ok) {
+
+      paste0(
+        "Gaussian retained because ",
+        positive_distribution,
+        " did not improve AIC by at least ",
+        CANONICAL_AR1_AIC_IMPROVEMENT,
+        " among converged candidates."
+      )
+
+    } else {
+
+      paste0(
+        "Neither glmmTMB candidate produced an acceptable ",
+        "positive-definite fit; Gaussian lmer/lm fallback ",
+        "with the same fixed-effect structure was used."
+      )
+    }
+
+
+  gaussian_final$candidate_aic <-
+    candidate_aic
+
+
+  gaussian_final
+}
+
+
+# ------------------------------------------------------------
+# Robust repeated-period model
+# ------------------------------------------------------------
+
+afri_fit_period_model <- function(
+    d,
+    response,
+    unit,
+    distribution
+) {
+
+  formula_ri <-
+    afri_period_formula_text(
+      d,
+      response,
+      unit,
+      use_ar1 = FALSE
+    )
+
+
+  formula_ar1 <-
+    afri_period_formula_text(
+      d,
+      response,
+      unit,
+      use_ar1 = TRUE
+    )
+
+
+  family_obj <-
+    afri_glmmtmb_family(
+      distribution
+    )
+
+
+  fit_ri <-
+    afri_try_glmmtmb(
+      formula =
+        stats::as.formula(
+          formula_ri
+        ),
+      data =
+        d,
+      family =
+        family_obj
+    )
+
+
+  repeated_group <-
+    if (unit == "animal") {
+      "Animal_Year_ID"
+    } else {
+      "Pasture_Year"
+    }
+
+
+  repeated_counts <-
+    if (
+      repeated_group %in%
+        names(d)
+    ) {
+
+      d |>
+        dplyr::count(
+          .data[[repeated_group]],
+          name = "n_periods"
+        )
+
+    } else {
+
+      tibble::tibble(
+        n_periods =
+          integer()
+      )
+    }
+
+
+  ar1_eligible <-
+    nrow(repeated_counts) > 0L &&
+    any(
+      repeated_counts$n_periods >= 3L
+    ) &&
+    dplyr::n_distinct(
+      d$Period
+    ) >= 3L
+
+
+  fit_ar1 <-
+    if (ar1_eligible) {
+
+      afri_try_glmmtmb(
+        formula =
+          stats::as.formula(
+            formula_ar1
+          ),
+        data =
+          d,
+        family =
+          family_obj
+      )
+
+    } else {
+
+      NULL
+    }
+
+
+  ri_ok <-
+    !is.null(
+      fit_ri
+    )
+
+
+  ar1_ok <-
+    !is.null(
+      fit_ar1
+    )
+
+
+  aic_ri <-
+    if (ri_ok) {
+      suppressWarnings(
+        stats::AIC(fit_ri)
+      )
+    } else {
+      NA_real_
+    }
+
+
+  aic_ar1 <-
+    if (ar1_ok) {
+      suppressWarnings(
+        stats::AIC(fit_ar1)
+      )
+    } else {
+      NA_real_
+    }
+
+
+  choose_ar1 <-
+    ar1_ok &&
+    (
+      !ri_ok ||
+      (
+        is.finite(aic_ar1) &&
+        is.finite(aic_ri) &&
+        aic_ar1 +
+          CANONICAL_AR1_AIC_IMPROVEMENT <
+          aic_ri
+      )
+    )
+
+
+  if (choose_ar1) {
+
+    final_model <-
+      fit_ar1
+
+    final_formula <-
+      formula_ar1
+
+    final_distribution <-
+      distribution
+
+    final_link <-
+      ifelse(
+        distribution == "Gaussian",
+        "identity",
+        "log"
+      )
+
+    final_engine <-
+      "glmmTMB::glmmTMB"
+
+    selection_note <-
+      paste0(
+        "AR(1) retained within ",
+        repeated_group,
+        " because it converged with a positive-definite ",
+        "Hessian and improved AIC sufficiently."
+      )
+
+  } else if (ri_ok) {
+
+    final_model <-
+      fit_ri
+
+    final_formula <-
+      formula_ri
+
+    final_distribution <-
+      distribution
+
+    final_link <-
+      ifelse(
+        distribution == "Gaussian",
+        "identity",
+        "log"
+      )
+
+    final_engine <-
+      "glmmTMB::glmmTMB"
+
+    selection_note <-
+      if (!ar1_eligible) {
+
+        paste0(
+          "Random-intercept model retained; AR(1) was not ",
+          "eligible from the available repeated-period structure."
+        )
+
+      } else if (!ar1_ok) {
+
+        paste0(
+          "Random-intercept model retained; AR(1) did not ",
+          "produce a converged positive-definite fit."
+        )
+
+      } else {
+
+        paste0(
+          "Random-intercept model retained because AR(1) did ",
+          "not improve AIC by at least ",
+          CANONICAL_AR1_AIC_IMPROVEMENT,
+          "."
+        )
+      }
+
+  } else {
+
+    # --------------------------------------------------------
+    # Both glmmTMB candidates were numerically invalid.
+    # Use Gaussian RI mixed model with the SAME fixed effects
+    # and same estimable RI terms. This prevents a bad-Hessian
+    # glmmTMB object from propagating NA EMM/SE values.
+    # --------------------------------------------------------
+
+    fallback_formula <-
+      stats::as.formula(
+        formula_ri
+      )
+
+
+    final_model <-
+      lmerTest::lmer(
+        fallback_formula,
+        data = d,
+        REML = TRUE,
+        control =
+          lme4::lmerControl(
+            optimizer = "bobyqa",
+            optCtrl =
+              list(
+                maxfun = 200000
+              ),
+            check.rankX =
+              "message+drop.cols",
+            check.nobs.vs.nlev =
+              "ignore",
+            check.nobs.vs.nRE =
+              "ignore"
+          )
+      )
+
+
+    final_formula <-
+      formula_ri
+
+    final_distribution <-
+      "Gaussian"
+
+    final_link <-
+      "identity"
+
+    final_engine <-
+      "lmerTest::lmer"
+
+    selection_note <-
+      paste0(
+        distribution,
+        " RI/AR(1) glmmTMB candidates failed convergence or ",
+        "positive-definite-Hessian checks; Gaussian RI ",
+        "fallback used with the same fixed-effect structure."
+      )
   }
-  fitted_terms <- afri_fixed_term_signature(fit$model)
-  if (!identical(fitted_terms, afri_requested_fixed_terms(scale))) {
-    stop(response, ": retained source model does not match the requested fixed-effects structure (TRT * SR",
-      if (scale == "period") " + full Period interactions" else "", "); rerun its source model chunks. No competing model fitted.")
+
+
+  list(
+
+    model =
+      final_model,
+
+    engine =
+      final_engine,
+
+    formula =
+      final_formula,
+
+    distribution =
+      final_distribution,
+
+    link =
+      final_link,
+
+    repeated_structure =
+      if (
+        identical(
+          final_engine,
+          "lmerTest::lmer"
+        )
+      ) {
+
+        paste0(
+          "Gaussian random-intercept fallback using final formula: ",
+          formula_ri,
+          "; repeated sequence = ",
+          repeated_group,
+          "."
+        )
+
+      } else if (unit == "animal") {
+
+        if (choose_ar1) {
+          paste0(
+            "(1 | Year) + (1 | Pasture) + ",
+            "AR(1) across RGP1-RGP5 within Animal_Year_ID; ",
+            "different steers each year"
+          )
+        } else {
+          paste0(
+            "(1 | Year) + (1 | Pasture) + ",
+            "(1 | Animal_Year_ID); different steers each year"
+          )
+        }
+
+      } else {
+
+        if (choose_ar1) {
+          paste0(
+            "(1 | Year) + (1 | Pasture) + ",
+            "AR(1) across RGP1-RGP5 within Pasture_Year (sequence ID only)"
+          )
+        } else {
+          paste0(
+            "(1 | Year) + (1 | Pasture); ",
+            "RGPs repeated within pasture-year; Pasture_Year is not a random intercept"
+          )
+        }
+      },
+
+    correlation_selection =
+      selection_note,
+
+    candidate_aic =
+      tibble::tibble(
+        Candidate =
+          c(
+            paste0(
+              distribution,
+              " random intercept"
+            ),
+            paste0(
+              distribution,
+              " AR(1)"
+            )
+          ),
+        AIC =
+          c(
+            aic_ri,
+            aic_ar1
+          ),
+        Converged =
+          c(
+            ri_ok,
+            ar1_ok
+          )
+      )
+  )
+}
+
+
+# ============================================================
+```
+
+
+```{r canonical-fit-functions, message=FALSE, warning=FALSE}
+afri_fit_one_response <- function(spec_row) {
+  dataset_key <- spec_row$Dataset_key[[1]]
+  dataset_label <- spec_row$Dataset[[1]]
+  response <- spec_row$Response[[1]]
+  scale <- spec_row$Scale[[1]]
+  unit <- spec_row$Unit[[1]]
+  subject <- spec_row$Subject[[1]]
+  family_rule <- spec_row$Family_rule[[1]]
+
+  if (is.na(subject) || !nzchar(subject)) subject <- NULL
+
+  raw_data <- canonical_datasets[[dataset_key]]
+  if (is.null(raw_data)) stop("Unknown dataset key: ", dataset_key)
+  if (!response %in% names(raw_data)) {
+    stop(dataset_label, " does not contain response ", response)
   }
-  fit$fixed_structure <- if (scale == "period") "TRT * SR * Period" else "TRT * SR"
-  fit$actual_fixed_terms <- fitted_terms
-  fit$repeated_structure <- paste(paste0("(1 | ", fitted_groups, ")"), collapse = " + ")
-  fit$formula <- paste(deparse(stats::formula(fit$model)), collapse = " ")
-  fit$counts <- afri_model_counts(fit$data, unit)
-  if (fit$counts$N_obs != stats::nobs(fit$model)) stop(response, ": model/data sample-size mismatch.")
-  fit$cell_replication <- afri_replication_audit(fit$data)
-  fit$management_replicated <- all(fit$cell_replication$N_physical_pastures >= 2L)
-  fit$inference_note <- paste(if (fit$management_replicated) "Replicated physical-pasture factorial cells." else
-    "Exploratory/conditional management inference: fewer than two independent physical pastures in a TRT × SR cell.",
-    fit$correlation_limitation,
-    if (scale == "period") "Period interacts with treatment and stocking rate; period-specific management patterns are estimated." else "")
+
+  d <- afri_prepare_model_data(
+    raw_data,
+    response = response,
+    scale = scale,
+    unit = unit,
+    subject_col = subject
+  )
+
+  distribution_audit <- afri_distribution_audit(
+    d,
+    response = response,
+    dataset = dataset_label,
+    scale = scale,
+    unit = unit
+  )
+
+  family_resolution <- afri_resolve_family(d[[response]], family_rule)
+
+  if (scale == "season") {
+    if (family_resolution$distribution %in%
+        c("AUTO_GAUSSIAN_GAMMA", "AUTO_GAUSSIAN_TWEEDIE")) {
+      fit <- afri_fit_season_auto_positive(
+        d, response, unit, family_resolution
+      )
+    } else if (family_resolution$distribution == "Gaussian") {
+      fit <- afri_fit_season_gaussian(d, response, unit)
+    } else {
+      fit <- afri_fit_season_glmmtmb(
+        d, response, unit, family_resolution$distribution
+      )
+    }
+  } else {
+    resolved_period_distribution <- family_resolution$distribution
+    if (resolved_period_distribution %in%
+        c("AUTO_GAUSSIAN_GAMMA", "AUTO_GAUSSIAN_TWEEDIE")) {
+      stop("Automatic positive-family selection is implemented only for season-level responses in this analysis.")
+    }
+    fit <- afri_fit_period_model(
+      d, response, unit, resolved_period_distribution
+    )
+  }
+
+  fit$dataset_key <- dataset_key
+  fit$dataset <- dataset_label
+  fit$response <- response
+  fit$table <- spec_row$Table[[1]]
+  fit$scale <- scale
+  fit$unit <- unit
+  fit$subject <- subject
+  fit$family_rule <- family_rule
+  fit$family_resolution_note <- family_resolution$note
+  fit$data <- d
+  fit$distribution_audit <- distribution_audit
+
+  # Record the ACTUAL final fitted formula rather than claiming that
+  # every requested random term was estimable.
+  if (
+    response %in%
+      c(
+        afri_table2_animal_responses,
+        afri_table2_pasture_responses
+      )
+  ) {
+
+    fit$repeated_structure <-
+      paste0(
+        "Final fitted formula: ",
+        fit$formula
+      )
+
+    fit$correlation_selection <-
+      paste0(
+        fit$correlation_selection,
+        " Final model retained only random-effect grouping terms ",
+        "that were estimable from the analysis dataset."
+      )
+  }
+
   fit
 }
 
-analysis_fits <- list()
-analysis_fit_status <- list()
-for (i in seq_len(nrow(analysis_specs))) {
-  spec_row <- analysis_specs[i, , drop = FALSE]
-  id <- afri_model_id(spec_row$Dataset_key, spec_row$Response)
-  result <- tryCatch(afri_fit_one_response(spec_row, analysis_fits), error = identity)
-  ok <- !inherits(result, "error")
-  if (ok) {
-    analysis_fits[[id]] <- result
-    count <- result$counts
-    status <- "Available retained Gaussian LMM"
-    note <- result$source
+canonical_specs <- canonical_specs |>
+  dplyr::filter(!Response %in% c("active_ha_outside_rgp", "GHG_g_per_active_ha_all_pasture",
+    "GHG_g_per_active_ha_inside_rgp", "GHG_g_per_kg_LWG", "GHG_g_per_active_ha_whole_season",
+    "GHG_g_per_kg_LWG_whole_season"))
+
+canonical_fits <- vector("list", nrow(canonical_specs))
+canonical_fit_status <- vector("list", nrow(canonical_specs))
+
+for (i in seq_len(nrow(canonical_specs))) {
+  spec_i <- canonical_specs[i, , drop = FALSE]
+  id <- afri_model_id(spec_i$Dataset_key[[1]], spec_i$Response[[1]])
+
+  fitted_i <- tryCatch(
+    afri_fit_one_response(spec_i),
+    error = function(e) e
+  )
+
+  if (inherits(fitted_i, "error")) {
+    canonical_fits[i] <- list(NULL)
+    canonical_fit_status[[i]] <- tibble::tibble(
+      Model_ID = id,
+      Dataset = spec_i$Dataset[[1]],
+      Response = spec_i$Response[[1]],
+      Status = "FIT FAILED",
+      Message = conditionMessage(fitted_i)
+    )
   } else {
-    analysis_fits[id] <- list(NULL)
-    count <- tibble::tibble(N_obs = NA_integer_, N_animals = NA_integer_,
-      N_pastures = NA_integer_, N_years = NA_integer_, N_pasture_years = NA_integer_)
-    status <- "Unavailable; no fallback model fitted"
-    note <- conditionMessage(result)
-    warning(id, ": ", note)
+    canonical_fits[[i]] <- fitted_i
+    canonical_fit_status[[i]] <- tibble::tibble(
+      Model_ID = id,
+      Dataset = spec_i$Dataset[[1]],
+      Response = spec_i$Response[[1]],
+      Status = "FIT SUCCEEDED",
+      Message = NA_character_
+    )
   }
-  analysis_fit_status[[id]] <- dplyr::bind_cols(
-    dplyr::select(spec_row, Table, Dataset_key, Dataset, Response, Scale, Unit), count,
-    tibble::tibble(Model_ID = id, Status = status, Fit_ok = ok, Note = note))
 }
-analysis_fit_status <- dplyr::bind_rows(analysis_fit_status)
-analysis_grouping_column_audit <- analysis_fit_status |>
-  dplyr::select(Model_ID, Dataset_key, Response, N_obs, N_pastures, N_years, N_pasture_years, Status)
-analysis_random_effect_column_audit <- analysis_grouping_column_audit
-analysis_response_cell_replication <- dplyr::bind_rows(lapply(analysis_fits, function(fit) {
-  if (is.null(fit)) return(NULL)
-  dplyr::mutate(fit$cell_replication, Dataset = fit$dataset, Response = fit$response,
-    Model_ID = afri_model_id(fit$dataset_key, fit$response), .before = 1)
-}))
+
+names(canonical_fits) <- vapply(
+  seq_len(nrow(canonical_specs)),
+  function(i) afri_model_id(
+    canonical_specs$Dataset_key[[i]],
+    canonical_specs$Response[[i]]
+  ),
+  character(1)
+)
+
+canonical_fit_status <- dplyr::bind_rows(canonical_fit_status)
+
+# Explicit final-model aliases corresponding to model names referenced in the
+# manuscript/request. The legacy objects remain available for sensitivity checks.
+monthly_grazing_sensitivity_revised <- canonical_fits[[afri_model_id("table1", "Grazing_h")]]$model
+monthly_resting_revised <- canonical_fits[[afri_model_id("table1", "Resting_h")]]$model
+monthly_traveling_gamma_revised <- canonical_fits[[afri_model_id("table1", "Traveling_h")]]$model
+DDT_revised <- canonical_fits[[afri_model_id("table1", "mean_DDT_day")]]$model
+Smooth_Period_ADG_revised <- canonical_fits[[afri_model_id("table2_adg", "Smooth_Period_ADG")]]$model
+CH4_Mean_g_d_revised <- canonical_fits[[afri_model_id("dressler", "CH4_Mean_g_d")]]$model
+CO2_Mean_g_d_revised <- canonical_fits[[afri_model_id("dressler", "CO2_Mean_g_d")]]$model
+
+if (any(canonical_fit_status$Status == "FIT FAILED")) {
+  warning(
+    "At least one canonical model failed. Review canonical_fit_status before ",
+    "using manuscript tables."
+  )
+}
+
+# ------------------------------------------------------------
+# QC: Year must be random, never fixed, in every successful
+# canonical model. This protects the downstream omnibus and
+# manuscript-table layers from silently reverting to P: Year.
+# ------------------------------------------------------------
+canonical_year_random_qc <- dplyr::bind_rows(
+  lapply(
+    canonical_fits,
+    function(fit) {
+      if (is.null(fit) || is.null(fit$model)) return(tibble::tibble())
+
+      formula_text <- paste(deparse(stats::formula(fit$model)), collapse = " ")
+      formula_without_year_ri <- stringr::str_replace_all(
+        formula_text,
+        "\\(1\\s*\\|\\s*Year\\)",
+        ""
+      )
+
+      tibble::tibble(
+        Table = fit$table,
+        Dataset = fit$dataset,
+        Response = fit$response,
+        Formula = formula_text,
+        Year_random_intercept = stringr::str_detect(
+          formula_text,
+          "\\(1\\s*\\|\\s*Year\\)"
+        ),
+        Year_fixed_effect = stringr::str_detect(
+          formula_without_year_ri,
+          "(^|[~+])\\s*Year\\s*([+]|$)"
+        )
+      )
+    }
+  )
+)
+
+if (nrow(canonical_year_random_qc) > 0L) {
+  if (any(canonical_year_random_qc$Year_fixed_effect, na.rm = TRUE)) {
+    print(canonical_year_random_qc %>% dplyr::filter(Year_fixed_effect))
+    stop("At least one canonical model still contains Year as a fixed effect.")
+  }
+
+  if (any(!canonical_year_random_qc$Year_random_intercept, na.rm = TRUE)) {
+    print(canonical_year_random_qc %>% dplyr::filter(!Year_random_intercept))
+    stop("At least one successful canonical model is missing the random Year intercept.")
+  }
+}
+
+# ------------------------------------------------------------
+# QC: Pasture_Year must never be a random intercept. Physical
+# Pasture must be present as the clustering random intercept,
+# and Table 1 behavior/DDT models must not use REAL_ID as a
+# random effect. Pasture_Year is allowed only inside an AR(1)
+# sequence expression for repeated pasture-period models.
+# ------------------------------------------------------------
+canonical_random_structure_qc <- dplyr::bind_rows(
+  lapply(
+    canonical_fits,
+    function(fit) {
+      if (is.null(fit) || is.null(fit$model)) return(tibble::tibble())
+
+      formula_text <- paste(deparse(stats::formula(fit$model)), collapse = " ")
+
+      tibble::tibble(
+        Table = fit$table,
+        Dataset = fit$dataset,
+        Response = fit$response,
+        Formula = formula_text,
+        Pasture_random_intercept = stringr::str_detect(
+          formula_text, "\\(1\\s*\\|\\s*Pasture\\)"
+        ),
+        Pasture_Year_random_intercept = stringr::str_detect(
+          formula_text, "\\(1\\s*\\|\\s*Pasture_Year\\)"
+        ),
+        REAL_ID_random_intercept = stringr::str_detect(
+          formula_text, "\\(1\\s*\\|\\s*REAL_ID\\)"
+        ),
+        Pasture_Year_used_for_AR1_only = stringr::str_detect(
+          formula_text, "ar1\\([^)]*\\|\\s*Pasture_Year\\)"
+        )
+      )
+    }
+  )
+)
+
+if (nrow(canonical_random_structure_qc) > 0L) {
+  if (any(canonical_random_structure_qc$Pasture_Year_random_intercept, na.rm = TRUE)) {
+    print(canonical_random_structure_qc %>% dplyr::filter(Pasture_Year_random_intercept))
+    stop("At least one canonical model still contains (1 | Pasture_Year).")
+  }
+
+  if (any(canonical_random_structure_qc$REAL_ID_random_intercept, na.rm = TRUE)) {
+    print(canonical_random_structure_qc %>% dplyr::filter(REAL_ID_random_intercept))
+    stop("At least one canonical model still contains (1 | REAL_ID).")
+  }
+
+  table1_qc <- canonical_random_structure_qc %>% dplyr::filter(Table == "TABLE 1")
+  if (nrow(table1_qc) > 0L && any(!table1_qc$Pasture_random_intercept, na.rm = TRUE)) {
+    print(table1_qc %>% dplyr::filter(!Pasture_random_intercept))
+    stop("At least one Table 1 behavior/DDT model is missing (1 | Pasture).")
+  }
+}
 ```
 
-## 9.10 Inference from retained model objects
 
-EMMs, omnibus tests, and grouping letters come from the retained inference objects.
-Management tests are preserved as exploratory audit results when pasture cells are
-unreplicated. For period responses, the distinct within-cell period comparison uses
-the same EMM grid with Tukey adjustment; it does not fit another model or recalculate
-the EMMs. Letters indicate failure to detect differences, not evidence of equality.
-
-```{r statistical-retained-inference, message=FALSE, warning=FALSE}
-afri_fit_identifiers <- function(fit) {
-  dplyr::bind_cols(tibble::tibble(Table = fit$table, Dataset_key = fit$dataset_key,
-    Dataset = fit$dataset, Response = fit$response, Scale = fit$scale, Unit = fit$unit,
-    Model_ID = afri_model_id(fit$dataset_key, fit$response), Source = fit$source,
-    Export_owner = fit$export_owner), fit$counts)
-}
-afri_add_identifiers <- function(tab, fit) {
-  tab <- tibble::as_tibble(tab)
-  if (!nrow(tab)) return(tab)
-  ids <- afri_fit_identifiers(fit)
-  ids <- ids[rep(1L, nrow(tab)), , drop = FALSE]
-  tab <- dplyr::select(tab, -dplyr::any_of(names(ids)))
-  dplyr::bind_cols(ids, tab)
-}
-afri_normalize_period_column <- function(tab) {
-  tab <- as.data.frame(tab)
-  if (!"Period" %in% names(tab) && "RGP" %in% names(tab)) tab$Period <- afri_period_label(tab$RGP)
-  if (!"Period" %in% names(tab) && "RotationPeriod" %in% names(tab)) tab$Period <- afri_period_label(tab$RotationPeriod)
-  if (!"Period" %in% names(tab)) tab$Period <- rep(NA_character_, nrow(tab))
-  tab
-}
+```{r canonical-omnibus-tests, message=FALSE, warning=FALSE}
 afri_omnibus_tests <- function(fit) {
-  if (is.null(fit)) return(NULL)
-  tab <- as.data.frame(fit$inference$anova)
-  term_col <- intersect(c("term", "Term", "Effect"), names(tab))
-  term <- if (length(term_col)) as.character(tab[[term_col[1L]]]) else rownames(tab)
-  out <- tibble::tibble(Term = gsub("RGP", "Period", gsub("RotationPeriod", "Period", term, fixed = TRUE), fixed = TRUE),
-    Statistic = afri_pick_numeric(tab, c("F_value", "F value", "Chisq", "F.ratio", "Statistic")),
-    df1 = afri_pick_numeric(tab, c("NumDF", "df1", "Df")),
-    df2 = afri_pick_numeric(tab, c("DenDF", "df2")),
-    P_value_raw = afri_pick_numeric(tab, c("p.value", "Pr(>F)", "Pr(>Chisq)", "P_value"))) |>
-    dplyr::filter(Term != "(Intercept)") |>
-    dplyr::mutate(Management_effect = grepl("TRT|SR", Term),
-      P_value = ifelse(Management_effect & !fit$management_replicated, NA_real_, P_value_raw),
-      Inference_note = ifelse(Management_effect, fit$inference_note,
-        paste("Model-based period effect; review diagnostics and estimability.", fit$correlation_limitation)),
-      DF_method = fit$inference$df_method,
-      Test = if (fit$dataset_key == "table1") "Preserved reference Type III test" else "lmerTest Type III F",
-      Effect = Term, Raw_P_value = P_value_raw, Manuscript_P_value = P_value,
-      NumDF = df1, DenDF = df2)
-  afri_add_identifiers(out, fit)
-}
-afri_get_emmeans <- function(fit) {
-  if (is.null(fit)) return(NULL)
-  tab <- afri_normalize_period_column(fit$inference$emmeans)
-  estimate <- afri_pick_numeric(tab, c("EMM", "emmean", "response"))
-  tab$EMM <- estimate
-  tab$SE <- afri_pick_numeric(tab, c("SE", "asymp.SE"))
-  tab$df <- afri_pick_numeric(tab, "df")
-  tab$lower.CL <- afri_pick_numeric(tab, c("lower.CL", "Lower_95CI", "asymp.LCL"))
-  tab$upper.CL <- afri_pick_numeric(tab, c("upper.CL", "Upper_95CI", "asymp.UCL"))
-  tab$TRT <- afri_normalize_trt(tab$TRT)
-  tab$SR <- afri_normalize_sr(tab$SR)
-  tab$EMM_Spec <- if (fit$scale == "period")
-    "TRT * SR * Period prediction grid; fitted fixed effects TRT * SR * Period" else "TRT * SR"
-  tab$Distribution <- "Gaussian"
-  tab$Link <- "identity"
-  tab$Inference_note <- fit$inference_note
-  tab <- dplyr::select(tibble::as_tibble(tab), -dplyr::any_of(c("emmean", "response", "RGP", "RotationPeriod")))
-  afri_add_identifiers(tab, fit)
-}
-# Obtain relevant within-cell period comparisons once; reuse for letters/export.
-if (!exists("afri_period_comparison_registry", inherits = FALSE)) {
-  afri_period_comparison_registry <- new.env(parent = emptyenv())
-}
-afri_period_comparisons <- function(fit) {
-  if (is.null(fit) || fit$scale != "period") return(NULL)
-  grid <- fit$inference$emm
-  cache_key <- paste(afri_model_signature(fit$model),
-    digest::digest(grid@grid, algo = "xxhash64"), sep = "_")
-  if (exists(cache_key, afri_period_comparison_registry, inherits = FALSE)) {
-    return(get(cache_key, afri_period_comparison_registry, inherits = FALSE))
-  }
-  ans <- tryCatch({
-    period_pairs <- as.data.frame(emmeans::contrast(grid, method = "pairwise", by = c("TRT", "SR"), adjust = "tukey"))
-    period_letters <- as.data.frame(multcomp::cld(grid, by = c("TRT", "SR"),
-      Letters = letters, adjust = "tukey", sort = FALSE))
-    list(pairs = period_pairs, cld = period_letters)
-  }, error = function(e) {
-    warning(fit$response, ": within-cell period comparisons unavailable: ", conditionMessage(e))
-    list(pairs = data.frame(), cld = data.frame())
-  })
-  assign(cache_key, ans, afri_period_comparison_registry)
-  ans
-}
-analysis_period_comparisons <- lapply(analysis_fits, afri_period_comparisons)
-afri_get_contrasts <- function(fit, period_comparisons) {
-  if (is.null(fit)) return(NULL)
-  raw <- afri_normalize_period_column(fit$inference$pairs)
-  if (nrow(raw)) {
-    raw$Contrast_type <- "Retained EMM-grid pairwise comparisons"
-    raw$P_value_raw <- afri_pick_numeric(raw, c("p.value", "P_value_raw"))
-    raw$P_value <- if (fit$management_replicated) raw$P_value_raw else NA_real_
-    raw$Inference_note <- fit$inference_note
-  }
-  within <- if (!is.null(period_comparisons)) afri_normalize_period_column(period_comparisons$pairs) else data.frame()
-  if (nrow(within)) {
-    within$Contrast_type <- "Period within TRT × SR"
-    within$P_value_raw <- afri_pick_numeric(within, "p.value")
-    within$P_value <- within$P_value_raw
-    within$Inference_note <- paste("Tukey-adjusted within-cell period comparison, conditional on the requested model.",
-      fit$correlation_limitation)
-  }
-  afri_add_identifiers(dplyr::bind_rows(raw, within), fit)
-}
-afri_get_cld <- function(fit, period_comparisons) {
-  if (is.null(fit)) return(NULL)
-  if (fit$scale == "period") {
-    tab <- if (!is.null(period_comparisons)) period_comparisons$cld else data.frame()
-    scope <- "Period within TRT × SR"
-    type <- "Period_within_TRT_SR"
+  if (is.null(fit) || is.null(fit$model)) return(tibble::tibble())
+  m <- fit$model
+  expected <- if (fit$scale == "period") {
+    c("TRT", "SR", "Period", "TRT:SR", "TRT:Period", "SR:Period", "TRT:SR:Period")
   } else {
-    tab <- fit$inference$cld
-    scope <- "TRT × SR cells"
-    type <- "Management_cells"
+    c("TRT", "SR", "TRT:SR")
   }
-  tab <- afri_normalize_period_column(tab)
-  if (!nrow(tab)) return(NULL)
-  group <- if (".group" %in% names(tab)) tab$.group else if ("PostHoc_Letter" %in% names(tab)) tab$PostHoc_Letter else rep(NA_character_, nrow(tab))
-  group <- stringr::str_squish(as.character(group))
-  if (fit$scale != "period" && !fit$management_replicated) group[] <- NA_character_
-  tab$.group <- group
-  tab$Group <- group
-  tab$PostHoc_Letter <- group
-  tab$CLD_Type <- type
-  tab$Grouping_scope <- scope
-  tab$TRT <- afri_normalize_trt(tab$TRT)
-  tab$SR <- afri_normalize_sr(tab$SR)
-  afri_add_identifiers(dplyr::select(tibble::as_tibble(tab), TRT, SR, Period,
-    .group, Group, PostHoc_Letter, CLD_Type, Grouping_scope), fit)
-}
-analysis_omnibus_tests <- dplyr::bind_rows(lapply(analysis_fits, afri_omnibus_tests))
-analysis_emmeans <- dplyr::bind_rows(lapply(analysis_fits, afri_get_emmeans))
-analysis_contrasts <- dplyr::bind_rows(lapply(names(analysis_fits), function(id) {
-  afri_get_contrasts(analysis_fits[[id]], analysis_period_comparisons[[id]])
-}))
-analysis_cld <- dplyr::bind_rows(lapply(names(analysis_fits), function(id) {
-  afri_get_cld(analysis_fits[[id]], analysis_period_comparisons[[id]])
-}))
-# Explicit empty schemas allow the publication audit to report unavailable models.
-if (!nrow(analysis_emmeans)) analysis_emmeans <- tibble::tibble(
-  Table = character(), Dataset_key = character(), Dataset = character(), Response = character(),
-  Scale = character(), Unit = character(), TRT = character(), SR = character(), Period = character(),
-  EMM = double(), SE = double(), df = double(), lower.CL = double(), upper.CL = double(),
-  N_obs = integer(), N_animals = integer(), N_pastures = integer(), N_years = integer())
-if (!nrow(analysis_omnibus_tests)) analysis_omnibus_tests <- tibble::tibble(
-  Table = character(), Dataset_key = character(), Dataset = character(), Response = character(), Term = character(),
-  Statistic = double(), df1 = double(), df2 = double(), P_value_raw = double(),
-  P_value = double(), Inference_note = character())
-if (!nrow(analysis_cld)) analysis_cld <- tibble::tibble(
-  Table = character(), Dataset_key = character(), Dataset = character(), Response = character(), TRT = character(),
-  SR = character(), Period = character(), .group = character(), Group = character(),
-  PostHoc_Letter = character(), CLD_Type = character(), Grouping_scope = character())
-```
 
-## 9.11 Standard Gaussian residual diagnostics
-
-Every retained model is diagnosed through the shared cache. Shapiro–Wilk is reported
-only for 3–5000 nonconstant finite residuals; outside that range the numerical test is
-explicitly unavailable, with no arbitrary subsampling. Residual-versus-fitted, normal
-Q–Q, and scale-location plots accompany the normality check. Variance summaries,
-convergence messages, singular fits, and extreme standardized residuals are retained.
-Residual flags are for review and never automatically exclude observations.
-
-```{r statistical-model-diagnostics, message=FALSE, warning=FALSE}
-analysis_diagnostic_objects <- list()
-analysis_influential_observations <- list()
-analysis_distribution_audit <- list()
-for (id in names(analysis_fits)) {
-  fit <- analysis_fits[[id]]
-  if (is.null(fit)) next
-  diag <- if (!is.null(fit$diagnostics)) fit$diagnostics else afri_diagnose_lmm(fit$model, id)
-  analysis_diagnostic_objects[[id]] <- diag
-  analysis_fits[[id]]$diagnostics <- diag
-  residual <- as.numeric(stats::residuals(fit$model))
-  residual_sd <- stats::sigma(fit$model)
-  standardized <- if (is.finite(residual_sd) && residual_sd > 0) residual / residual_sd else rep(NA_real_, length(residual))
-  flagged <- which(is.finite(standardized) & abs(standardized) > 3)
-  if (length(flagged)) {
-    model_rows <- rownames(stats::model.frame(fit$model))
-    analysis_influential_observations[[id]] <- tibble::tibble(
-      Model_ID = id, Dataset = fit$dataset, Response = fit$response,
-      Model_row = model_rows[flagged], Residual = residual[flagged],
-      Standardized_residual = standardized[flagged],
-      Action = "Review only; observation retained. This flag is not a leverage/Cook-distance test.")
-  }
-  y <- fit$data[[fit$fitted_response]]
-  analysis_distribution_audit[[id]] <- dplyr::bind_cols(afri_fit_identifiers(fit),
-    tibble::tibble(Min = min(y, na.rm = TRUE), Median = stats::median(y, na.rm = TRUE),
-      Mean = mean(y, na.rm = TRUE), Max = max(y, na.rm = TRUE), SD = stats::sd(y, na.rm = TRUE),
-      N_zero = sum(y == 0, na.rm = TRUE), N_negative = sum(y < 0, na.rm = TRUE),
-      Distribution = "Gaussian; no automatic family switch"))
-}
-analysis_model_diagnostics <- dplyr::bind_rows(lapply(names(analysis_diagnostic_objects), function(id) {
-  afri_add_identifiers(analysis_diagnostic_objects[[id]]$summary, analysis_fits[[id]])
-}))
-analysis_residual_variance_review <- dplyr::bind_rows(lapply(names(analysis_diagnostic_objects), function(id) {
-  afri_add_identifiers(analysis_diagnostic_objects[[id]]$variance_review, analysis_fits[[id]])
-}))
-analysis_random_effect_variances <- dplyr::bind_rows(lapply(names(analysis_diagnostic_objects), function(id) {
-  afri_add_identifiers(analysis_diagnostic_objects[[id]]$variances, analysis_fits[[id]])
-}))
-analysis_influential_observations <- dplyr::bind_rows(analysis_influential_observations)
-analysis_distribution_audit <- dplyr::bind_rows(analysis_distribution_audit)
-analysis_year_random_qc <- dplyr::bind_rows(lapply(analysis_fits, function(fit) {
-  if (is.null(fit)) return(NULL)
-  groups <- names(lme4::ranef(fit$model))
-  tibble::tibble(Dataset = fit$dataset, Response = fit$response,
-    Has_Year_random_intercept = any(groups %in% c("Year", "YearFactor")),
-    Formula = fit$formula)
-}))
-analysis_random_structure_qc <- dplyr::bind_rows(lapply(analysis_fits, function(fit) {
-  if (is.null(fit)) return(NULL)
-  groups <- names(lme4::ranef(fit$model))
-  tibble::tibble(Dataset = fit$dataset, Response = fit$response,
-    Has_physical_Pasture_random_intercept = any(groups %in% c("Pasture", "Pasture_ID")),
-    Has_annual_repeated_cluster = any(groups %in% c("Pasture_Year", "PastureYear", "Year:Pasture_ID", "Pasture_ID:Year")),
-    Has_animal_year_random_intercept = "Animal_Year_ID" %in% groups,
-    Requested_random_groups = "Year; physical Pasture",
-    Actual_random_groups = paste(groups, collapse = "; "),
-    Matches_requested_random_structure = length(groups) == 2L &&
-      any(groups %in% c("Year", "YearFactor")) && any(groups %in% c("Pasture", "Pasture_ID")),
-    Requested_fixed_effects = if (fit$scale == "period") "TRT * SR * Period" else "TRT * SR",
-    Actual_fixed_terms = paste(afri_fixed_term_signature(fit$model), collapse = "; "),
-    Matches_requested_fixed_structure = identical(afri_fixed_term_signature(fit$model), afri_requested_fixed_terms(fit$scale)),
-    Repeated_observation_note = fit$correlation_limitation,
-    Formula = fit$formula, Source = fit$source)
-}))
-```
-
-## 9.12 Model documentation and reporting inputs
-
-The following tables are views of retained results, not another analysis. Final
-publication exports are handled once in Section 9.12.1. Model files and diagnostics
-are saved here only for newly owned statistical models; reused Section 5/6 outputs
-remain at their existing designated locations.
-
-```{r statistical-model-documentation, message=FALSE, warning=FALSE}
-analysis_model_documentation <- dplyr::bind_rows(lapply(analysis_fits, function(fit) {
-  if (is.null(fit)) return(NULL)
-  afri_add_identifiers(tibble::tibble(
-    `Final statistical model` = fit$formula,
-    `R package/function used` = fit$engine,
-    `Fixed effects` = fit$fixed_structure,
-    `Random/repeated effects` = fit$repeated_structure,
-    `Distribution and link` = "Gaussian / identity",
-    `Model specification and limitations` = paste("Requested Year/Pasture-only random structure.",
-      fit$correlation_limitation, fit$source, fit$inference_note),
-    `Model diagnostics` = "Applicable Shapiro–Wilk, residual-fitted, Q–Q, scale-location, random-effect variances, singularity, convergence; flagged rows retained.",
-    `Omnibus tests` = if (fit$dataset_key == "table1") "Preserved reference Type III tests" else paste("lmerTest Type III;", fit$inference$df_method),
-    `Estimated marginal means` = if (fit$scale == "period") "Retained TRT × SR × Period prediction grid from the full Period interactions model" else "Retained TRT × SR grid",
-    `Relevant pairwise comparisons` = if (fit$scale == "period") "Retained grid pairs; Period within TRT × SR" else "Retained TRT × SR grid pairs",
-    `Compact-letter displays` = if (fit$scale == "period") "Period within TRT × SR; no management letters without pasture replication" else "Management letters withheld without pasture replication"), fit)
-}))
-if (!nrow(analysis_model_documentation)) analysis_model_documentation <- tibble::tibble(
-  Table = character(), Dataset_key = character(), Dataset = character(), Response = character(),
-  Scale = character(), Unit = character(), Model_ID = character(),
-  N_obs = integer(), N_animals = integer(), N_pastures = integer(), N_years = integer(),
-  N_pasture_years = integer(), Source = character(), Export_owner = character(),
-  `Fixed effects` = character(), `Random/repeated effects` = character(),
-  `Final statistical model` = character())
-analysis_model_summary <- analysis_model_documentation |>
-  dplyr::select(Table, Dataset_key, Dataset, Response, Scale, Unit, Model_ID,
-    N_obs, N_animals, N_pastures, N_years, N_pasture_years, Source, Export_owner,
-    `Fixed effects`, `Random/repeated effects`, `Final statistical model`) |>
-  dplyr::rename(`Random/repeated structure` = `Random/repeated effects`,
-    `Final model` = `Final statistical model`) |>
-  dplyr::mutate(Distribution = "Gaussian / identity")
-Table1_response_labels <- tibble::tribble(
-  ~Response, ~Manuscript_Label,
-  "Grazing_h", "Grazing (h/day)", "Resting_h", "Resting (h/day)",
-  "Traveling_h", "Traveling (h/day)", "mean_DDT_day", "Daily distance traveled (km/day)")
-Table2_response_labels <- tibble::tribble(
-  ~Response, ~Manuscript_Label,
-  "CH4_Mean_g_d", "Ave CH4 (g/day)", "CO2_Mean_g_d", "Ave CO2 (g/day)",
-  "Smooth_Period_ADG", "ADG (kg/day)", "Shrunk_Initial_BW_kg", "Initial SBW (kg)",
-  "Shrunk_Final_BW_kg", "Final SBW (kg)",
-  "CH4_g_per_active_ha_whole_season", "Whole season CH4/ha",
-  "CO2_g_per_active_ha_whole_season", "Whole season CO2/ha",
-  "active_ha_whole_season", "Whole season area grazed (ha)",
-  "LWG_kg_per_active_ha_whole_season", "Whole season LWG (kg/ha)")
-Table1_Grazing_Behaviors_results <- dplyr::filter(analysis_emmeans, Table == "TABLE 1") |>
-  dplyr::left_join(Table1_response_labels, by = "Response")
-Table1_model_summary <- dplyr::filter(analysis_model_summary, Table == "TABLE 1")
-Table2_Whole_Season_results <- dplyr::filter(analysis_emmeans, Table == "TABLE 2") |>
-  dplyr::left_join(Table2_response_labels, by = "Response")
-Table2_Animal_Performance_Methane_results <- Table2_Whole_Season_results
-Table2_model_summary <- dplyr::filter(analysis_model_summary, Table == "TABLE 2")
-Other_Manuscript_Tables_results <- dplyr::filter(analysis_emmeans, !Table %in% c("TABLE 1", "TABLE 2"))
-legacy_model_review <- tibble::tibble(
-  Analysis = c("Monthly behavior/DDT", "Whole-window ADG", "Matched-grid active area", "Joined season gas aliases", "Remaining unique continuous outcomes"),
-  Action = c("Reuse Sections 1–5.5 models and inference; no season-mean replacement.",
-    "Reuse Section 6 smooth_adg_model and smooth_adg_inference.",
-    "Reuse Section 6 pasture_use_models after observation-key/response equality check.",
-    "Reuse Dressler model when equivalent; label unequal endpoint-linked subset as sensitivity.",
-    "One Gaussian LMM per response/design question; no silent fixed-model/family fallback."))
-
-if (export_results) {
-  owned_ids <- names(analysis_fits)[vapply(analysis_fits, function(fit) {
-    !is.null(fit) && identical(fit$export_owner, "06_Statistical_Analysis") && is.null(fit$reuse_model_id)
-  }, logical(1))]
-  if (length(owned_ids)) {
-    model_dir <- file.path(analysis_output_dir, "02_Model_Results")
-    figure_dir <- file.path(analysis_output_dir, "03_Figures", "Diagnostics")
-    dir.create(model_dir, recursive = TRUE, showWarnings = FALSE)
-    dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
-    # One RDS bundle is the reproducible model archive; no per-model duplicate RDS.
-    saveRDS(lapply(analysis_fits[owned_ids], function(fit) {
-      list(model = fit$model, data = fit$data, inference = fit$inference,
-        diagnostics = fit$diagnostics, formula = fit$formula,
-        observation_counts = fit$counts, inference_note = fit$inference_note,
-        correlation_limitation = fit$correlation_limitation)
-    }), file.path(model_dir, "Retained_Gaussian_LMMs.rds"))
-    for (id in owned_ids) {
-      plots <- analysis_diagnostic_objects[[id]]$plots
-      for (nm in names(plots)) {
-        ggplot2::ggsave(file.path(figure_dir, paste0(id, "__", nm, ".png")),
-          plot = plots[[nm]], width = 7, height = 5, dpi = 300)
+  empty_tests <- function() tibble::tibble(
+    Effect = character(), NumDF = numeric(), DenDF = numeric(),
+    Statistic = numeric(), Test = character(),
+    Raw_P_value = numeric(), DF_method = character(), Test_source = character()
+  )
+  primary <- tryCatch({
+    if (inherits(m, "lmerMod")) {
+      method <- if (requireNamespace("pbkrtest", quietly = TRUE)) {
+        "Kenward-Roger"
+      } else "Satterthwaite"
+      ans <- tryCatch(
+        stats::anova(m, type = 3, ddf = method),
+        error = function(e) {
+          method <<- "Satterthwaite"
+          stats::anova(m, type = 3, ddf = "Satterthwaite")
+        }
+      )
+      tab <- tibble::rownames_to_column(as.data.frame(ans), "Effect")
+      tibble::tibble(
+        Effect = tab$Effect,
+        NumDF = suppressWarnings(as.numeric(tab$NumDF)),
+        DenDF = suppressWarnings(as.numeric(tab$DenDF)),
+        Statistic = suppressWarnings(as.numeric(tab[["F value"]])),
+        Test = "Type III F", Raw_P_value = suppressWarnings(as.numeric(tab[["Pr(>F)"]])),
+        DF_method = method, Test_source = "Type III ANOVA"
+      )
+    } else if (inherits(m, "lm") || inherits(m, "glmmTMB")) {
+      tab <- tibble::rownames_to_column(
+        as.data.frame(car::Anova(m, type = 3)), "Effect"
+      )
+      get_col <- function(pattern) {
+        hit <- grep(pattern, names(tab), value = TRUE)[1]
+        if (is.na(hit)) rep(NA_real_, nrow(tab)) else
+          suppressWarnings(as.numeric(tab[[hit]]))
       }
+      is_lm <- inherits(m, "lm")
+      tibble::tibble(
+        Effect = tab$Effect,
+        NumDF = get_col("^(Df|df)$"),
+        DenDF = if (is_lm) stats::df.residual(m) else NA_real_,
+        Statistic = get_col(if (is_lm) "F value" else "^(Chisq|LR Chisq)$"),
+        Test = if (is_lm) "Type III F" else "Type III Wald chi-square",
+        Raw_P_value = get_col("Pr\\("),
+        DF_method = if (is_lm) "Residual df" else "Asymptotic",
+        Test_source = "Type III ANOVA"
+      )
+    } else empty_tests()
+  }, error = function(e) {
+    warning(fit$response, ": Type III omnibus extraction failed: ",
+            conditionMessage(e), "; attempting estimable joint tests.")
+    empty_tests()
+  })
+
+  primary <- primary |>
+    dplyr::filter(!is.na(Effect), Effect != "(Intercept)") |>
+    dplyr::mutate(Effect = gsub("[[:space:]]+", "", Effect))
+
+  # Joint tests target the same factorial model terms and are only a fallback
+  # for absent or nonfinite primary P-values. A non-estimable hypothesis must
+  # remain NA rather than being replaced with an invented P-value.
+  missing_primary <- setdiff(expected, primary$Effect)
+  need_fallback <- length(missing_primary) > 0L ||
+    any(!is.finite(primary$Raw_P_value[primary$Effect %in% expected]))
+  fallback <- empty_tests()
+  if (need_fallback) {
+    jt <- tryCatch(as.data.frame(emmeans::joint_tests(m, show0df = TRUE)),
+      error = function(e) {
+        warning(fit$response, ": emmeans joint_tests fallback failed: ",
+                conditionMessage(e))
+        NULL
+      })
+    if (!is.null(jt) && "model term" %in% names(jt) &&
+        all(c("df1", "p.value") %in% names(jt))) {
+      get_jt <- function(name) {
+        if (name %in% names(jt)) suppressWarnings(as.numeric(jt[[name]]))
+        else rep(NA_real_, nrow(jt))
+      }
+      df1 <- get_jt("df1")
+      raw_p <- get_jt("p.value")
+      raw_p[!is.finite(df1) | df1 <= 0 | !is.finite(raw_p) |
+              raw_p < 0 | raw_p > 1] <- NA_real_
+      fallback <- tibble::tibble(
+        Effect = gsub("[[:space:]]+", "", as.character(jt[["model term"]])),
+        NumDF = df1,
+        DenDF = get_jt("df2"),
+        Statistic = get_jt("F.ratio"),
+        Test = "Joint F (fallback)",
+        Raw_P_value = raw_p,
+        DF_method = "emmeans::joint_tests; check estimability",
+        Test_source = "Estimable joint-test fallback"
+      ) |>
+        dplyr::filter(Effect %in% expected)
     }
   }
+
+  out <- primary
+  for (effect in expected) {
+    current <- which(out$Effect == effect)
+    alt <- which(fallback$Effect == effect & is.finite(fallback$Raw_P_value))
+    if (!length(current)) {
+      if (length(alt)) {
+        out <- dplyr::bind_rows(out, fallback[alt[1], , drop = FALSE])
+      } else {
+        out <- dplyr::bind_rows(out, tibble::tibble(
+          Effect = effect, NumDF = NA_real_, DenDF = NA_real_,
+          Statistic = NA_real_, Test = "Unavailable",
+          Raw_P_value = NA_real_, DF_method = "Not estimable or test unavailable",
+          Test_source = "No finite P-value from either test"
+        ))
+      }
+    } else if (!is.finite(out$Raw_P_value[current[1]]) && length(alt)) {
+      out[current[1], names(fallback)] <- fallback[alt[1], names(fallback)]
+    }
+  }
+
+  out |>
+    dplyr::mutate(
+      Management_effect = stringr::str_detect(Effect, "TRT|SR"),
+      Confirmatory_for_management =
+        !Management_effect | canonical_design_has_cell_replication,
+      Manuscript_P_value = dplyr::if_else(
+        Confirmatory_for_management, Raw_P_value, NA_real_
+      ),
+      Inference_note = dplyr::case_when(
+        !is.finite(Raw_P_value) ~
+          "P unavailable: test not estimable or numerical/df problem; inspect RGP_PValue_Audit, fit status, and model diagnostics.",
+        Management_effect & !canonical_design_has_cell_replication ~
+          "Exploratory/conditional only: one physical pasture per TRT x SR cell.",
+        Effect == "Period" ~
+          "Within-unit repeated-period effect across the observed experimental units.",
+        TRUE ~ "Model-based omnibus test."
+      ),
+      Dataset = fit$dataset, Response = fit$response, Table = fit$table,
+      .before = 1
+    )
 }
-analysis_model_summary
+canonical_omnibus_tests <- dplyr::bind_rows(
+  lapply(canonical_fits, afri_omnibus_tests)
+)
+```
+
+
+```{r canonical-emmeans-contrasts, message=FALSE, warning=FALSE}
+afri_emm_type <- function(fit) {
+  "response"
+}
+
+afri_emmeans_call <- function(fit, specs) {
+  if (inherits(fit$model, "lmerMod")) {
+    emmeans::emmeans(
+      fit$model,
+      specs = specs,
+      type = afri_emm_type(fit),
+      lmer.df = if (requireNamespace("pbkrtest", quietly = TRUE)) "kenward-roger" else "satterthwaite"
+    )
+  } else {
+    emmeans::emmeans(
+      fit$model,
+      specs = specs,
+      type = afri_emm_type(fit)
+    )
+  }
+}
+
+# BLOCK B — ROBUST EMM EXTRACTION
+# Replace afri_get_emmeans() in canonical-emmeans-contrasts
+# BEFORE canonical_emmeans <- bind_rows(...)
+# ============================================================
+
+afri_emm_numeric_column <- function(tab, preferred, exclude = character()) {
+  # Never substitute an unrelated numeric column for an EMM, SE, or CI:
+  # in particular, using emmean as an SE produces spurious "mean +/- mean".
+  for (nm in intersect(preferred, names(tab))) {
+    z <- suppressWarnings(as.numeric(tab[[nm]]))
+    if (any(is.finite(z))) return(z)
+  }
+  rep(NA_real_, nrow(tab))
+}
+
+afri_get_emmeans <- function(fit) {
+
+  if (
+    is.null(fit) ||
+    is.null(fit$model)
+  ) {
+
+    return(
+      tibble::tibble()
+    )
+  }
+
+
+  spec <-
+    if (
+      fit$scale ==
+        "period"
+    ) {
+
+      ~ TRT * SR * Period
+
+    } else {
+
+      ~ TRT * SR
+    }
+
+
+  emm <-
+    afri_emmeans_call(
+      fit,
+      spec
+    )
+
+
+  tab <-
+    as.data.frame(
+      summary(
+        emm,
+        infer =
+          c(
+            TRUE,
+            TRUE
+          )
+      )
+    ) |>
+    tibble::as_tibble()
+
+
+  tab$.EMM_estimate <-
+    afri_emm_numeric_column(
+
+      tab,
+
+      preferred =
+        c(
+          "response",
+          "emmean",
+          "prob",
+          "rate"
+        ),
+
+      exclude =
+        c(
+          "SE",
+          "asymp.SE",
+          "df",
+          "lower.CL",
+          "upper.CL",
+          "asymp.LCL",
+          "asymp.UCL",
+          "t.ratio",
+          "z.ratio",
+          "p.value"
+        )
+    )
+
+
+  tab$.EMM_SE <-
+    afri_emm_numeric_column(
+
+      tab,
+
+      preferred =
+        c(
+          "SE",
+          "asymp.SE"
+        ),
+
+      exclude =
+        c(
+          "df",
+          "lower.CL",
+          "upper.CL",
+          "asymp.LCL",
+          "asymp.UCL",
+          "t.ratio",
+          "z.ratio",
+          "p.value"
+        )
+    )
+
+
+  tab$.EMM_lower <-
+    afri_emm_numeric_column(
+      tab,
+      preferred =
+        c(
+          "lower.CL",
+          "asymp.LCL"
+        ),
+      exclude =
+        c(
+          "SE",
+          "asymp.SE",
+          "df",
+          "upper.CL",
+          "asymp.UCL",
+          "t.ratio",
+          "z.ratio",
+          "p.value"
+        )
+    )
+
+
+  tab$.EMM_upper <-
+    afri_emm_numeric_column(
+      tab,
+      preferred =
+        c(
+          "upper.CL",
+          "asymp.UCL"
+        ),
+      exclude =
+        c(
+          "SE",
+          "asymp.SE",
+          "df",
+          "lower.CL",
+          "asymp.LCL",
+          "t.ratio",
+          "z.ratio",
+          "p.value"
+        )
+    )
+
+
+  tab |>
+    dplyr::mutate(
+
+      Dataset =
+        fit$dataset,
+
+      Response =
+        fit$response,
+
+      Table =
+        fit$table,
+
+      EMM_Spec =
+        ifelse(
+          fit$scale ==
+            "period",
+          "TRT * SR * Period",
+          "TRT * SR"
+        ),
+
+      Distribution =
+        fit$distribution,
+
+      Link =
+        fit$link,
+
+      Inference_note =
+        if (
+          canonical_design_has_cell_replication
+        ) {
+          "Factorial-cell replication adequate for management inference."
+        } else {
+          paste0(
+            "EMMs are descriptive/conditional for management effects ",
+            "because each TRT x SR cell has one physical pasture."
+          )
+        },
+
+      .before =
+        1
+    )
+}
+
+
+# ============================================================
+
+afri_pairs_table <- function(fit, specs, contrast_type, adjust) {
+  if (is.null(fit) || is.null(fit$model)) return(tibble::tibble())
+
+  emm <- afri_emmeans_call(fit, specs)
+
+  out <- as.data.frame(
+    summary(
+      pairs(emm, adjust = adjust),
+      infer = c(TRUE, TRUE),
+      type = afri_emm_type(fit)
+    )
+  ) %>%
+    tibble::as_tibble()
+
+  if (!"p.value" %in% names(out)) out$p.value <- NA_real_
+
+  management_contrast <- stringr::str_detect(
+    contrast_type,
+    "TRT|SR"
+  ) && !stringr::str_detect(contrast_type, "Period_within")
+
+  out %>%
+    dplyr::mutate(
+      Dataset = fit$dataset,
+      Response = fit$response,
+      Table = fit$table,
+      Contrast_Type = contrast_type,
+      Multiplicity_Adjustment = adjust,
+      Raw_P_value = p.value,
+      Holm_across_returned_contrasts = stats::p.adjust(
+        p.value,
+        method = "holm"
+      ),
+      Manuscript_P_value = ifelse(
+        management_contrast && !canonical_design_has_cell_replication,
+        NA_real_,
+        p.value
+      ),
+      Inference_note = dplyr::case_when(
+        management_contrast && !canonical_design_has_cell_replication ~
+          "Management comparison is exploratory/conditional because factorial cells are not independently replicated by pasture.",
+        stringr::str_detect(contrast_type, "Period_within") ~
+          "Temporal comparison within an observed TRT x SR pasture cell; do not generalize cell-specific differences as replicated treatment effects.",
+        TRUE ~ "Model-based pairwise comparison."
+      ),
+      .before = 1
+    )
+}
+
+afri_get_contrasts <- function(fit) {
+  if (is.null(fit) || is.null(fit$model)) return(tibble::tibble())
+
+  if (fit$scale == "season") {
+    dplyr::bind_rows(
+      afri_pairs_table(
+        fit,
+        ~ TRT | SR,
+        "TRT_within_SR",
+        "none"
+      ),
+      afri_pairs_table(
+        fit,
+        ~ SR | TRT,
+        "SR_within_TRT",
+        "tukey"
+      )
+    )
+  } else {
+    dplyr::bind_rows(
+      afri_pairs_table(
+        fit,
+        ~ TRT | SR * Period,
+        "TRT_within_SR_and_Period",
+        "none"
+      ),
+      afri_pairs_table(
+        fit,
+        ~ SR | TRT * Period,
+        "SR_within_TRT_and_Period",
+        "tukey"
+      ),
+      afri_pairs_table(
+        fit,
+        ~ Period | TRT * SR,
+        "Period_within_TRT_and_SR",
+        "tukey"
+      )
+    )
+  }
+}
+
+canonical_emmeans <- dplyr::bind_rows(
+  lapply(canonical_fits, afri_get_emmeans)
+)
+
+canonical_contrasts <- dplyr::bind_rows(
+  lapply(canonical_fits, afri_get_contrasts)
+)
+```
+
+
+```{r canonical-cld, message=FALSE, warning=FALSE}
+afri_get_cld <- function(fit) {
+  if (is.null(fit) || is.null(fit$model)) return(tibble::tibble())
+
+  output <- list()
+
+  # Period comparisons are within the observed repeated-measures subject/cell.
+  if (fit$scale == "period") {
+    emm_period <- afri_emmeans_call(
+      fit,
+      ~ Period | TRT * SR
+    )
+
+    period_cld <- tryCatch(
+      as.data.frame(
+        multcomp::cld(
+          emm_period,
+          adjust = "tukey",
+          Letters = letters,
+          alpha = CANONICAL_MANAGEMENT_ALPHA
+        )
+      ),
+      error = function(e) NULL
+    )
+
+    if (!is.null(period_cld)) {
+      output[["period"]] <- tibble::as_tibble(period_cld) %>%
+        dplyr::mutate(
+          CLD_Type = "Period_within_TRT_and_SR",
+          Inference_note = paste(
+            "Temporal CLD within the observed pasture cell;",
+            "management-cell generalization remains limited by one pasture per TRT x SR cell."
+          )
+        )
+    }
+  }
+
+  # Management CLDs are deliberately suppressed when factorial cells are unreplicated.
+  if (
+    canonical_design_has_cell_replication ||
+      CANONICAL_ALLOW_EXPLORATORY_MANAGEMENT_CLD
+  ) {
+    emm_sr <- afri_emmeans_call(
+      fit,
+      if (fit$scale == "period") {
+        ~ SR | TRT * Period
+      } else {
+        ~ SR | TRT
+      }
+    )
+
+    sr_cld <- tryCatch(
+      as.data.frame(
+        multcomp::cld(
+          emm_sr,
+          adjust = "tukey",
+          Letters = letters,
+          alpha = CANONICAL_MANAGEMENT_ALPHA
+        )
+      ),
+      error = function(e) NULL
+    )
+
+    if (!is.null(sr_cld)) {
+      output[["sr"]] <- tibble::as_tibble(sr_cld) %>%
+        dplyr::mutate(
+          CLD_Type = "SR_within_TRT",
+          Inference_note = ifelse(
+            canonical_design_has_cell_replication,
+            "Management CLD based on replicated factorial cells.",
+            "Exploratory management CLD; factorial cells are not independently replicated."
+          )
+        )
+    }
+  }
+
+  if (!length(output)) return(tibble::tibble())
+
+  dplyr::bind_rows(output) %>%
+    dplyr::mutate(
+      Dataset = fit$dataset,
+      Response = fit$response,
+      Table = fit$table,
+      .before = 1
+    )
+}
+
+canonical_cld <- dplyr::bind_rows(
+  lapply(canonical_fits, afri_get_cld)
+)
+```
+
+
+```{r canonical-model-diagnostics, message=FALSE, warning=FALSE}
+# ============================================================
+# MODEL DIAGNOSTICS
+# ============================================================
+
+# ------------------------------------------------------------
+# Ensure diagnostic output directory exists
+# ------------------------------------------------------------
+
+if (export_results) {
+
+  dir.create(
+    canonical_output_dir,
+    recursive = TRUE,
+    showWarnings = FALSE
+  )
+
+  if (!dir.exists(canonical_output_dir)) {
+    warning(
+      "Could not create canonical output directory: ",
+      canonical_output_dir,
+      ". Diagnostic tables will still be generated, but plots may not be saved."
+    )
+  }
+}
+
+
+# ------------------------------------------------------------
+# Safe PNG export helper
+# ------------------------------------------------------------
+# Uses ragg when available because it is generally more robust
+# than the system PNG device. If ragg is unavailable, falls back
+# to grDevices::png().
+#
+# Importantly, failure to save a figure does NOT stop the
+# statistical analysis.
+# ------------------------------------------------------------
+
+afri_save_diagnostic_png <- function(
+  filename,
+  plot_fun,
+  width = 1800,
+  height = 1400,
+  res = 180
+) {
+
+  out_dir <- dirname(filename)
+
+  # Make sure directory exists
+  if (!dir.exists(out_dir)) {
+    dir.create(
+      out_dir,
+      recursive = TRUE,
+      showWarnings = FALSE
+    )
+  }
+
+  if (!dir.exists(out_dir)) {
+    warning(
+      "Diagnostic plot not saved because directory does not exist ",
+      "and could not be created: ",
+      out_dir
+    )
+    return(invisible(FALSE))
+  }
+
+  # Check whether directory is writable
+  writable <- tryCatch(
+    file.access(out_dir, mode = 2) == 0,
+    error = function(e) FALSE
+  )
+
+  if (!isTRUE(writable)) {
+    warning(
+      "Diagnostic plot not saved because directory is not writable: ",
+      out_dir
+    )
+    return(invisible(FALSE))
+  }
+
+  device_open <- FALSE
+
+  result <- tryCatch({
+
+    # Prefer ragg when installed
+    if (requireNamespace("ragg", quietly = TRUE)) {
+
+      ragg::agg_png(
+        filename = filename,
+        width = width,
+        height = height,
+        units = "px",
+        res = res,
+        background = "white"
+      )
+
+      device_open <- TRUE
+
+    } else {
+
+      # Fall back to base R PNG device
+      png_type <- if (isTRUE(capabilities("cairo"))) {
+        "cairo"
+      } else {
+        getOption("bitmapType")
+      }
+
+      grDevices::png(
+        filename = filename,
+        width = width,
+        height = height,
+        res = res,
+        type = png_type
+      )
+
+      device_open <- TRUE
+    }
+
+    # Create plot
+    plot_fun()
+
+    # Close graphics device
+    grDevices::dev.off()
+    device_open <- FALSE
+
+    TRUE
+
+  }, error = function(e) {
+
+    if (isTRUE(device_open)) {
+      try(
+        grDevices::dev.off(),
+        silent = TRUE
+      )
+    }
+
+    warning(
+      paste0(
+        "Could not save diagnostic plot:\n",
+        filename,
+        "\nReason: ",
+        conditionMessage(e)
+      ),
+      call. = FALSE
+    )
+
+    FALSE
+  })
+
+  invisible(result)
+}
+
+
+# ------------------------------------------------------------
+# Random-effect variance text
+# ------------------------------------------------------------
+
+afri_random_effect_text <- function(model) {
+
+  if (
+    inherits(model, "lm") &&
+    !inherits(model, "lmerMod")
+  ) {
+    return("None")
+  }
+
+  tryCatch({
+
+    vc <- if (inherits(model, "glmmTMB")) {
+
+      summary(model)$varcor
+
+    } else {
+
+      lme4::VarCorr(model)
+    }
+
+    paste(
+      capture.output(print(vc)),
+      collapse = " | "
+    )
+
+  }, error = function(e) {
+
+    NA_character_
+  })
+}
+
+
+# ------------------------------------------------------------
+# Standardized / Pearson residuals
+# ------------------------------------------------------------
+
+afri_standardized_residuals <- function(model) {
+
+  # GLMMs
+  if (inherits(model, "glmmTMB")) {
+
+    return(
+      suppressWarnings(
+        stats::residuals(
+          model,
+          type = "pearson"
+        )
+      )
+    )
+  }
+
+  # Gaussian LM / LMM
+  if (
+    inherits(model, "lmerMod") ||
+    inherits(model, "lm")
+  ) {
+
+    s <- suppressWarnings(
+      stats::sigma(model)
+    )
+
+    r <- suppressWarnings(
+      stats::residuals(model)
+    )
+
+    if (
+      length(s) == 1L &&
+      is.finite(s) &&
+      s > 0
+    ) {
+      return(r / s)
+    }
+
+    return(r)
+  }
+
+  # Generic fallback
+  suppressWarnings(
+    stats::residuals(model)
+  )
+}
+
+
+# ------------------------------------------------------------
+# Convergence information
+# ------------------------------------------------------------
+
+afri_convergence_message <- function(model) {
+
+  if (inherits(model, "glmmTMB")) {
+
+    convergence_code <- tryCatch(
+      model$fit$convergence,
+      error = function(e) NA
+    )
+
+    pd_hess <- tryCatch(
+      model$sdr$pdHess,
+      error = function(e) NA
+    )
+
+    return(
+      paste0(
+        "optimizer_code=",
+        convergence_code,
+        "; pdHess=",
+        pd_hess
+      )
+    )
+  }
+
+
+  if (inherits(model, "lmerMod")) {
+
+    msg <- tryCatch(
+      model@optinfo$conv$lme4$messages,
+      error = function(e) NULL
+    )
+
+    if (is.null(msg)) {
+      return("none")
+    }
+
+    return(
+      paste(
+        msg,
+        collapse = " | "
+      )
+    )
+  }
+
+
+  if (
+    inherits(model, "lm") &&
+    !inherits(model, "lmerMod")
+  ) {
+    return("not applicable")
+  }
+
+
+  NA_character_
+}
+
+
+# ------------------------------------------------------------
+# Singularity / boundary flag
+# ------------------------------------------------------------
+
+afri_singularity_flag <- function(model) {
+
+  # lme4 models
+  if (inherits(model, "lmerMod")) {
+
+    return(
+      tryCatch(
+        lme4::isSingular(
+          model,
+          tol = 1e-4
+        ),
+        error = function(e) NA
+      )
+    )
+  }
+
+  # Other mixed models, e.g. glmmTMB
+  val <- tryCatch(
+    performance::check_singularity(model),
+    error = function(e) NA
+  )
+
+  if (is.logical(val)) {
+    return(
+      isTRUE(val[1])
+    )
+  }
+
+  NA
+}
+
+
+# ------------------------------------------------------------
+# DHARMa diagnostic tests
+# ------------------------------------------------------------
+
+afri_dharma_tests <- function(
+  model,
+  response_has_zero
+) {
+
+  # DHARMa is not needed for ordinary lm fits
+  if (
+    inherits(model, "lm") &&
+    !inherits(model, "lmerMod")
+  ) {
+
+    return(
+      list(
+        simulation = NULL,
+        uniformity_p = NA_real_,
+        dispersion_p = NA_real_,
+        outlier_p = NA_real_,
+        zero_inflation_p = NA_real_
+      )
+    )
+  }
+
+
+  sim <- tryCatch(
+
+    DHARMa::simulateResiduals(
+      fittedModel = model,
+      n = CANONICAL_DHARMA_SIMULATIONS,
+      plot = FALSE,
+      refit = FALSE
+    ),
+
+    error = function(e) {
+
+      warning(
+        paste0(
+          "DHARMa residual simulation failed: ",
+          conditionMessage(e)
+        ),
+        call. = FALSE
+      )
+
+      NULL
+    }
+  )
+
+
+  if (is.null(sim)) {
+
+    return(
+      list(
+        simulation = NULL,
+        uniformity_p = NA_real_,
+        dispersion_p = NA_real_,
+        outlier_p = NA_real_,
+        zero_inflation_p = NA_real_
+      )
+    )
+  }
+
+
+  uniformity_p <- afri_safe_p(
+    tryCatch(
+      DHARMa::testUniformity(sim)$p.value,
+      error = function(e) NA_real_
+    )
+  )
+
+
+  dispersion_p <- afri_safe_p(
+    tryCatch(
+      DHARMa::testDispersion(sim)$p.value,
+      error = function(e) NA_real_
+    )
+  )
+
+
+  outlier_p <- afri_safe_p(
+    tryCatch(
+      DHARMa::testOutliers(sim)$p.value,
+      error = function(e) NA_real_
+    )
+  )
+
+
+  zero_inflation_p <- if (isTRUE(response_has_zero)) {
+
+    afri_safe_p(
+      tryCatch(
+        DHARMa::testZeroInflation(sim)$p.value,
+        error = function(e) NA_real_
+      )
+    )
+
+  } else {
+
+    NA_real_
+  }
+
+
+  list(
+    simulation = sim,
+    uniformity_p = uniformity_p,
+    dispersion_p = dispersion_p,
+    outlier_p = outlier_p,
+    zero_inflation_p = zero_inflation_p
+  )
+}
+
+
+# ------------------------------------------------------------
+# Complete diagnostics for one canonical model
+# ------------------------------------------------------------
+
+afri_model_diagnostics <- function(fit) {
+
+  # Empty / failed model
+  if (
+    is.null(fit) ||
+    is.null(fit$model)
+  ) {
+
+    return(
+      list(
+        summary = tibble::tibble(),
+        influential = tibble::tibble()
+      )
+    )
+  }
+
+
+  m <- fit$model
+  d <- fit$data
+  response <- fit$response
+
+
+  # ----------------------------------------------------------
+  # Residuals and fitted values
+  # ----------------------------------------------------------
+
+  std_resid <- tryCatch(
+    afri_standardized_residuals(m),
+    error = function(e) numeric(0)
+  )
+
+  fitted_values <- tryCatch(
+    suppressWarnings(
+      stats::fitted(m)
+    ),
+    error = function(e) numeric(0)
+  )
+
+
+  n_common <- min(
+    length(std_resid),
+    nrow(d),
+    length(fitted_values)
+  )
+
+
+  if (n_common > 0L) {
+
+    std_resid <- std_resid[
+      seq_len(n_common)
+    ]
+
+    fitted_values <- fitted_values[
+      seq_len(n_common)
+    ]
+
+    diag_data <- d[
+      seq_len(n_common),
+      ,
+      drop = FALSE
+    ]
+
+  } else {
+
+    std_resid <- numeric(0)
+    fitted_values <- numeric(0)
+
+    diag_data <- d[
+      0,
+      ,
+      drop = FALSE
+    ]
+  }
+
+
+  # ----------------------------------------------------------
+  # Shapiro-Wilk test for Gaussian models
+  # ----------------------------------------------------------
+
+  resid_sd <- if (
+    length(std_resid) > 1L
+  ) {
+
+    suppressWarnings(
+      stats::sd(
+        std_resid,
+        na.rm = TRUE
+      )
+    )
+
+  } else {
+
+    NA_real_
+  }
+
+
+  shapiro <- if (
+    identical(fit$distribution, "Gaussian") &&
+    length(std_resid) >= 3L &&
+    length(std_resid) <= 5000L &&
+    is.finite(resid_sd) &&
+    resid_sd > 0
+  ) {
+
+    tryCatch(
+      stats::shapiro.test(std_resid),
+      error = function(e) NULL
+    )
+
+  } else {
+
+    NULL
+  }
+
+
+  # ----------------------------------------------------------
+  # Determine whether observed response contains zero
+  # ----------------------------------------------------------
+
+  response_has_zero <- FALSE
+
+  if (
+    nrow(diag_data) > 0L &&
+    response %in% names(diag_data)
+  ) {
+
+    response_has_zero <- any(
+      diag_data[[response]] == 0,
+      na.rm = TRUE
+    )
+  }
+
+
+  # ----------------------------------------------------------
+  # DHARMa diagnostics
+  # ----------------------------------------------------------
+
+  dh <- afri_dharma_tests(
+    model = m,
+    response_has_zero = response_has_zero
+  )
+
+
+  # ----------------------------------------------------------
+  # Residual heterogeneity proxy
+  # Spearman correlation between |residual| and fitted value
+  # ----------------------------------------------------------
+
+  abs_resid_sd <- if (
+    length(std_resid) > 1L
+  ) {
+
+    suppressWarnings(
+      stats::sd(
+        abs(std_resid),
+        na.rm = TRUE
+      )
+    )
+
+  } else {
+
+    NA_real_
+  }
+
+
+  fitted_sd <- if (
+    length(fitted_values) > 1L
+  ) {
+
+    suppressWarnings(
+      stats::sd(
+        fitted_values,
+        na.rm = TRUE
+      )
+    )
+
+  } else {
+
+    NA_real_
+  }
+
+
+  heterogeneity_proxy <- if (
+    length(std_resid) > 3L &&
+    is.finite(abs_resid_sd) &&
+    abs_resid_sd > 0 &&
+    is.finite(fitted_sd) &&
+    fitted_sd > 0
+  ) {
+
+    suppressWarnings(
+      stats::cor(
+        abs(std_resid),
+        fitted_values,
+        method = "spearman",
+        use = "complete.obs"
+      )
+    )
+
+  } else {
+
+    NA_real_
+  }
+
+
+  # ----------------------------------------------------------
+  # Cook's distance for ordinary linear models only
+  # ----------------------------------------------------------
+
+  is_plain_lm <- (
+    inherits(m, "lm") &&
+    !inherits(m, "lmerMod")
+  )
+
+
+  if (
+    is_plain_lm &&
+    n_common > 0L
+  ) {
+
+    cooks_all <- tryCatch(
+      suppressWarnings(
+        stats::cooks.distance(m)
+      ),
+      error = function(e) rep(
+        NA_real_,
+        n_common
+      )
+    )
+
+    cooks <- rep(
+      NA_real_,
+      n_common
+    )
+
+    n_cooks <- min(
+      length(cooks_all),
+      n_common
+    )
+
+    if (n_cooks > 0L) {
+      cooks[
+        seq_len(n_cooks)
+      ] <- cooks_all[
+        seq_len(n_cooks)
+      ]
+    }
+
+  } else {
+
+    cooks <- rep(
+      NA_real_,
+      n_common
+    )
+  }
+
+
+  cook_cutoff <- if (
+    is_plain_lm &&
+    n_common > 0L
+  ) {
+
+    4 / n_common
+
+  } else {
+
+    NA_real_
+  }
+
+
+  # ----------------------------------------------------------
+  # Influential observations
+  # ----------------------------------------------------------
+
+  if (n_common > 0L) {
+
+    influential <- diag_data %>%
+      dplyr::mutate(
+        Standardized_or_Pearson_residual = std_resid,
+        Fitted = fitted_values,
+        Abs_residual = abs(
+          Standardized_or_Pearson_residual
+        ),
+        Cook_distance = cooks,
+        Cook_cutoff = cook_cutoff,
+        Influence_flag =
+          (
+            !is.na(Abs_residual) &
+            Abs_residual > 3
+          ) |
+          (
+            !is.na(Cook_distance) &
+            is.finite(Cook_cutoff) &
+            Cook_distance > Cook_cutoff
+          )
+      ) %>%
+      dplyr::filter(
+        Influence_flag
+      ) %>%
+      dplyr::mutate(
+        Dataset = fit$dataset,
+        Response = fit$response,
+        Table = fit$table,
+        .before = 1
+      )
+
+  } else {
+
+    influential <- tibble::tibble()
+  }
+
+
+  # ----------------------------------------------------------
+  # NCV test for ordinary LM only
+  # ----------------------------------------------------------
+
+  heteroscedasticity_p <- if (is_plain_lm) {
+
+    tryCatch(
+      as.numeric(
+        car::ncvTest(m)$p
+      ),
+      error = function(e) NA_real_
+    )
+
+  } else {
+
+    NA_real_
+  }
+
+
+  # ----------------------------------------------------------
+  # Diagnostic summary table
+  # ----------------------------------------------------------
+
+  diagnostic_summary <- tibble::tibble(
+    Dataset = fit$dataset,
+    Response = fit$response,
+    Table = fit$table,
+    N = nrow(d),
+
+    Distribution = fit$distribution,
+    Link = fit$link,
+
+    Singular_or_boundary =
+      afri_singularity_flag(m),
+
+    Convergence =
+      afri_convergence_message(m),
+
+    Shapiro_W = if (is.null(shapiro)) {
+      NA_real_
+    } else {
+      unname(shapiro$statistic)
+    },
+
+    Shapiro_p = if (is.null(shapiro)) {
+      NA_real_
+    } else {
+      shapiro$p.value
+    },
+
+    AbsResidual_Fitted_Spearman =
+      heterogeneity_proxy,
+
+    Heteroscedasticity_p_LM =
+      heteroscedasticity_p,
+
+    DHARMa_uniformity_p =
+      dh$uniformity_p,
+
+    DHARMa_dispersion_p =
+      dh$dispersion_p,
+
+    DHARMa_outlier_p =
+      dh$outlier_p,
+
+    DHARMa_zero_inflation_p =
+      dh$zero_inflation_p,
+
+    N_influence_flags =
+      nrow(influential),
+
+    Random_effect_variances =
+      afri_random_effect_text(m),
+
+    Correlation_selection =
+      fit$correlation_selection,
+
+    Family_selection =
+      fit$family_resolution_note
+  )
+
+
+  # ----------------------------------------------------------
+  # Export ordinary LM diagnostic plots
+  # ----------------------------------------------------------
+
+  if (
+    isTRUE(export_results) &&
+    is_plain_lm
+  ) {
+
+    lm_png_file <- file.path(
+      canonical_output_dir,
+      paste0(
+        "Diagnostic_LM_",
+        gsub(
+          "[^A-Za-z0-9_]+",
+          "_",
+          fit$dataset
+        ),
+        "__",
+        gsub(
+          "[^A-Za-z0-9_]+",
+          "_",
+          fit$response
+        ),
+        ".png"
+      )
+    )
+
+
+    afri_save_diagnostic_png(
+      filename = lm_png_file,
+      plot_fun = function() {
+
+        old_par <- graphics::par(
+          mfrow = c(2, 2)
+        )
+
+        on.exit(
+          graphics::par(old_par),
+          add = TRUE
+        )
+
+        plot(m)
+      }
+    )
+  }
+
+
+  # ----------------------------------------------------------
+  # Export DHARMa diagnostic plots
+  # ----------------------------------------------------------
+
+  if (
+    isTRUE(export_results) &&
+    !is.null(dh$simulation)
+  ) {
+
+    png_file <- file.path(
+      canonical_output_dir,
+      paste0(
+        "Diagnostic_",
+        gsub(
+          "[^A-Za-z0-9_]+",
+          "_",
+          fit$dataset
+        ),
+        "__",
+        gsub(
+          "[^A-Za-z0-9_]+",
+          "_",
+          fit$response
+        ),
+        ".png"
+      )
+    )
+
+
+    afri_save_diagnostic_png(
+      filename = png_file,
+      plot_fun = function() {
+
+        plot(
+          dh$simulation
+        )
+      }
+    )
+  }
+
+
+  # ----------------------------------------------------------
+  # Return diagnostics
+  # ----------------------------------------------------------
+
+  list(
+    summary = diagnostic_summary,
+    influential = influential
+  )
+}
+
+
+# ============================================================
+# RUN DIAGNOSTICS FOR ALL CANONICAL MODELS
+# ============================================================
+
+canonical_diagnostic_objects <- lapply(
+  canonical_fits,
+  afri_model_diagnostics
+)
+
+
+# ============================================================
+# COMBINE DIAGNOSTIC SUMMARY TABLES
+# ============================================================
+
+canonical_model_diagnostics <- dplyr::bind_rows(
+  lapply(
+    canonical_diagnostic_objects,
+    `[[`,
+    "summary"
+  )
+)
+
+
+# ============================================================
+# COMBINE FLAGGED / INFLUENTIAL OBSERVATIONS
+# ============================================================
+
+canonical_influential_observations <- dplyr::bind_rows(
+  lapply(
+    canonical_diagnostic_objects,
+    `[[`,
+    "influential"
+  )
+)
+
+
+# ============================================================
+# COMBINE DISTRIBUTION AUDIT TABLES
+# ============================================================
+
+canonical_distribution_audit <- dplyr::bind_rows(
+  lapply(
+    canonical_fits,
+    function(x) {
+
+      if (
+        is.null(x) ||
+        is.null(x$distribution_audit)
+      ) {
+
+        tibble::tibble()
+
+      } else {
+
+        x$distribution_audit
+      }
+    }
+  )
+)
+
+
+# ============================================================
+# OPTIONAL: QUICK CHECK OF RESULTS
+# ============================================================
+
+print(canonical_model_diagnostics)
+
+if (nrow(canonical_influential_observations) > 0L) {
+
+  message(
+    "Influential / extreme observations flagged: ",
+    nrow(canonical_influential_observations)
+  )
+
+} else {
+
+  message(
+    "No observations met the current influence-flag criteria."
+  )
+}
+```
+
+
+```{r canonical-final-model-documentation, message=FALSE, warning=FALSE}
+afri_fit_overview <- function(fit) {
+  if (is.null(fit)) return(tibble::tibble())
+
+  fixed_effects <- if (fit$scale == "period") {
+    "TRT * SR * Period"
+  } else {
+    "TRT * SR"
+  }
+
+  rationale <- if (fit$response %in% afri_table2_animal_responses) {
+    paste(
+      "This is one whole-season animal-level response per animal-year.",
+      "Different steers were used in each year, so no SEID/REAL_ID random intercept is used.",
+      "The model uses TRT * SR with random intercepts for Year and physical Pasture only, with no REAL_ID/SEID, Pasture_Year, Period, or AR(1) term."
+    )
+  } else if (fit$response %in% afri_table2_pasture_responses) {
+    paste(
+      "This is one whole-season pasture-year response.",
+      "The model uses TRT * SR with random intercepts for Year and physical Pasture only, with no REAL_ID/SEID, Pasture_Year, Period, or AR(1) term.",
+      "Pasture_Year may remain as a pasture-by-year identifier, but it is not fitted as a variance component; diagnostics therefore report only the Year and Pasture random intercepts."
+    )
+  } else if (fit$scale == "period" && fit$unit == "animal") {
+    paste(
+      "Multiple RGP observations occur within the same animal-year.",
+      "Physical Pasture is included as a random intercept; Pasture_Year is not. Animal_Year_ID represents repeated RGP observations on a steer within that year.",
+      "Different steers were used across years, so no across-year animal random intercept is used."
+    )
+  } else if (fit$scale == "period" && fit$unit == "pasture") {
+    paste(
+      "One response occurs per pasture-year-period.",
+      "Physical Pasture is the random intercept across years. Pasture_Year only defines the annual RGP sequence when AR(1) is evaluated; it is not a random intercept.",
+      "Period is categorical and Year is a random intercept."
+    )
+  } else if (fit$scale == "season" && fit$unit == "animal") {
+    paste(
+      "One season-level value occurs per animal-year.",
+      "Different steers were used each year, so no across-year animal random intercept is used; Year and Pasture are the random intercepts and Pasture_Year is not.",
+      "Year is modeled as a random intercept."
+    )
+  } else {
+    paste(
+      "One season-level value occurs per pasture-year; Year and Pasture are the only random intercepts.",
+      "Pasture_Year may remain as an identifier but is not fitted as a variance component."
+    )
+  }
+
+  tibble::tibble(
+    Table = fit$table,
+    Dataset = fit$dataset,
+    Response = fit$response,
+    `Final statistical model` = fit$formula,
+    `R package/function used` = fit$engine,
+    `Fixed effects` = fixed_effects,
+    `Random/repeated effects` = fit$repeated_structure,
+    `Distribution and link` = paste(fit$distribution, fit$link, sep = " / "),
+    `Why this model is appropriate` = rationale,
+    `Model diagnostics` = paste(
+      "DHARMa uniformity/dispersion/outlier checks for mixed/GLMM fits; Gaussian residual Q-Q/Shapiro when relevant;",
+      "LM non-constant-variance test and Cook distance; residual-vs-fitted heterogeneity proxy; convergence; singularity/boundary;",
+      "random-effect variances and standardized/Pearson residual influence flags."
+    ),
+    `Omnibus tests` = if (inherits(fit$model, "lmerMod")) {
+      "Type III F tests with Kenward-Roger (Satterthwaite fallback)"
+    } else if (inherits(fit$model, "lm")) {
+      "Type III F tests from car::Anova; management P-values masked from confirmatory manuscript inference when factorial cells are unreplicated"
+    } else {
+      "Type III Wald chi-square tests; management P-values masked from confirmatory manuscript inference when factorial cells are unreplicated"
+    },
+    `Estimated marginal means` = if (fit$scale == "period") {
+      "emmeans(model, ~ TRT * SR * Period)"
+    } else {
+      "emmeans(model, ~ TRT * SR)"
+    },
+    `Relevant pairwise comparisons` = if (fit$scale == "period") {
+      "TRT within SR and Period; SR within TRT and Period; Period within TRT x SR"
+    } else {
+      "TRT within SR; SR within TRT"
+    },
+    `Compact-letter displays` = if (fit$scale == "period") {
+      "Period within TRT x SR when estimable; management CLDs suppressed unless factorial cells are independently replicated"
+    } else {
+      "Management CLDs suppressed unless factorial cells are independently replicated"
+    },
+    `Code used for final results table` =
+      "canonical_emmeans + canonical_omnibus_tests + canonical_contrasts + canonical_model_summary"
+  )
+}
+
+canonical_model_documentation <- dplyr::bind_rows(
+  lapply(canonical_fits, afri_fit_overview)
+)
+
+canonical_model_summary <- canonical_model_documentation %>%
+  dplyr::transmute(
+    Response,
+    Dataset,
+    Distribution = `Distribution and link`,
+    `Fixed effects` = `Fixed effects`,
+    `Random/repeated structure` = `Random/repeated effects`,
+    `Final model` = `Final statistical model`
+  )
+
+# Primary result tables are long/tidy so no information is hidden by a single SEM.
+Table1_Grazing_Behaviors_results <- canonical_emmeans %>%
+  dplyr::filter(Table == "TABLE 1")
+
+Table1_response_labels <- tibble::tribble(
+  ~Response, ~Manuscript_Label, ~Analysis_Level, ~Repeated_Measures, ~Requested_Model_Structure,
+  "Grazing_h", "Grazing (h/day)", "Animal-year", "No", "TRT * SR + (1 | Year) + (1 | Pasture)",
+  "Resting_h", "Resting (h/day)", "Animal-year", "No", "TRT * SR + (1 | Year) + (1 | Pasture)",
+  "Traveling_h", "Traveling (h/day)", "Animal-year", "No", "TRT * SR + (1 | Year) + (1 | Pasture)",
+  "mean_DDT_day", "Daily distance traveled (km/day)", "Animal-year", "No", "TRT * SR + (1 | Year) + (1 | Pasture)"
+)
+
+Table1_Grazing_Behaviors_results <- Table1_Grazing_Behaviors_results %>%
+  dplyr::left_join(Table1_response_labels, by = "Response")
+
+Table1_model_summary <- canonical_model_summary %>%
+  dplyr::filter(Response %in% Table1_response_labels$Response) %>%
+  dplyr::left_join(Table1_response_labels, by = "Response")
+
+Table2_Whole_Season_results <- canonical_emmeans %>%
+  dplyr::filter(Table == "TABLE 2")
+
+Table2_response_labels <- tibble::tribble(
+  ~Response, ~Manuscript_Label, ~Analysis_Level, ~Repeated_Measures, ~Requested_Model_Structure,
+  "CH4_Mean_g_d", "Ave CH4 (g/day)", "Animal-year", "No", "TRT * SR + (1 | Year) + (1 | Pasture)",
+  "CO2_Mean_g_d", "Ave CO2 (g/day)", "Animal-year", "No", "TRT * SR + (1 | Year) + (1 | Pasture)",
+  "Smooth_Period_ADG", "ADG (kg/day)", "Animal-year", "No", "TRT * SR + (1 | Year) + (1 | Pasture)",
+  "Shrunk_Initial_BW_kg", "Initial SBW (kg)", "Animal-year", "No", "TRT * SR + (1 | Year) + (1 | Pasture)",
+  "Shrunk_Final_BW_kg", "Final SBW (kg)", "Animal-year", "No", "TRT * SR + (1 | Year) + (1 | Pasture)",
+  "CH4_g_per_active_ha_whole_season", "Whole season CH4/ha", "Pasture-year", "No", "TRT * SR + (1 | Year) + (1 | Pasture)",
+  "CO2_g_per_active_ha_whole_season", "Whole season CO2/ha", "Pasture-year", "No", "TRT * SR + (1 | Year) + (1 | Pasture)",
+  "active_ha_whole_season", "Whole season area grazed (ha)", "Pasture-year", "No", "TRT * SR + (1 | Year) + (1 | Pasture)",
+  "LWG_kg_per_active_ha_whole_season", "Whole season LWG (kg/ha)", "Pasture-year", "No", "TRT * SR + (1 | Year) + (1 | Pasture)"
+)
+
+Table2_Whole_Season_results <- Table2_Whole_Season_results %>%
+  dplyr::left_join(Table2_response_labels, by = "Response")
+
+# Backward-compatible alias retained for older downstream code.
+Table2_Animal_Performance_Methane_results <- Table2_Whole_Season_results
+
+Table2_model_summary <- canonical_model_summary %>%
+  dplyr::filter(Response %in% Table2_response_labels$Response) %>%
+  dplyr::left_join(Table2_response_labels, by = "Response")
+
+Other_Manuscript_Tables_results <- canonical_emmeans %>%
+  dplyr::filter(!Table %in% c("TABLE 1", "TABLE 2"))
+
+# Explicit review of the models named in the request.
+legacy_model_review <- tibble::tribble(
+  ~Legacy_model, ~Canonical_replacement, ~Reason,
+  "monthly_grazing_sensitivity",
+  "Table1_Grazing_Behaviors / Grazing_h season-level model",
+  "Monthly rows are reduced to one quality-controlled season mean per animal-year. Different steers were used each year, so the primary model is TRT * SR + (1 | Year) + (1 | Pasture), with no animal random intercept, Period, or AR(1).",
+  "monthly_resting",
+  "Table1_Grazing_Behaviors / Resting_h season-level model",
+  "Same season-level reduction as grazing, with Year and physical Pasture random intercepts and no REAL_ID or Pasture_Year random intercept.",
+  "monthly_traveling_gamma",
+  "Table1_Grazing_Behaviors / Traveling_h season-level distribution-selected model",
+  "Uses Year and physical Pasture random intercepts only. Gamma is retained only if a positive-family model materially improves AIC over Gaussian; zeros trigger a Tweedie candidate.",
+  "mod.Monthly_DDT_filtered",
+  "Table1_Grazing_Behaviors / mean_DDT_day season-level model",
+  "Daily DDT is averaged to one animal-year response and modeled with TRT * SR + (1 | Year) + (1 | Pasture).",
+  "Period_ADG repeated-period model",
+  "Table 2 / Smooth_Period_ADG animal-level model",
+  "Smooth_Period_ADG is one whole-interval ADG value per animal-year and is now one of the nine Table 2 outcomes. It uses TRT * SR + (1 | Year) + (1 | Pasture), with no SEID random effect, Period, or AR(1).",
+  "CH4_Mean_g_d with (1|SEID)",
+  "Table 2 / CH4_Mean_g_d season-level model",
+  "Ave CH4 is one whole-season value per animal-year. Different steers were used each year, so SEID is not a random effect; Year and physical Pasture are the random intercepts and Pasture_Year is not.",
+  "CO2_Mean_g_d with (1|SEID)",
+  "Table 2 / CO2_Mean_g_d season-level model",
+  "Ave CO2 follows the same non-repeated animal-year structure as Ave CH4 and uses Year and physical Pasture random intercepts only."
+)
+
+canonical_model_summary
+```
+
+
+
+## 9.12 Current workbook integration
+
+```{r original-method-workbook-adapter, message=FALSE, warning=FALSE}
+analysis_output_dir <- canonical_output_dir
+analysis_specs <- canonical_specs
+analysis_fits <- canonical_fits
+analysis_fit_status <- canonical_fit_status
+analysis_design_summary <- canonical_design_summary
+analysis_cell_replication <- canonical_cell_replication
+analysis_pasture_influence_audit <- canonical_pasture_influence_audit
+analysis_year_random_qc <- canonical_year_random_qc
+analysis_random_structure_qc <- canonical_random_structure_qc
+analysis_datasets <- canonical_datasets
+
+# Join reporting metadata to numerical outputs without changing their values.
+original_method_counts <- dplyr::bind_rows(lapply(names(canonical_fits), function(id) {
+  fit <- canonical_fits[[id]]
+  if (is.null(fit)) return(NULL)
+  tibble::tibble(Dataset = fit$dataset, Response = fit$response, Model_ID = id,
+    N_obs = stats::nobs(fit$model), N_animals = if (fit$unit == "animal")
+      dplyr::n_distinct(interaction(fit$data$Year, fit$data$Pasture,
+        if ("SEID" %in% names(fit$data)) fit$data$SEID else fit$data$REAL_ID)) else NA_integer_,
+    N_pastures = dplyr::n_distinct(fit$data$Pasture), N_years = dplyr::n_distinct(fit$data$Year),
+    N_pasture_years = dplyr::n_distinct(interaction(fit$data$Year, fit$data$Pasture)))
+}))
+original_method_metadata <- analysis_specs |>
+  dplyr::select(Table, Dataset_key, Dataset, Response, Scale, Unit) |>
+  dplyr::left_join(original_method_counts, by = c("Dataset", "Response"))
+original_method_enrich <- function(data) {
+  data <- tibble::as_tibble(data)
+  if (!nrow(data)) return(data)
+  data |>
+    dplyr::select(-dplyr::any_of(setdiff(names(original_method_metadata), c("Dataset", "Response")))) |>
+    dplyr::left_join(original_method_metadata, by = c("Dataset", "Response"))
+}
+analysis_emmeans <- original_method_enrich(canonical_emmeans)
+analysis_emmeans$EMM <- analysis_emmeans$.EMM_estimate
+analysis_emmeans$SE <- analysis_emmeans$.EMM_SE
+analysis_emmeans$lower.CL <- analysis_emmeans$.EMM_lower
+analysis_emmeans$upper.CL <- analysis_emmeans$.EMM_upper
+if (!"Period" %in% names(analysis_emmeans)) analysis_emmeans$Period <- NA_character_
+analysis_omnibus_tests <- original_method_enrich(canonical_omnibus_tests) |>
+  dplyr::mutate(Term = Effect, P_value_raw = Raw_P_value, P_value = Manuscript_P_value)
+analysis_contrasts <- original_method_enrich(canonical_contrasts)
+analysis_cld <- original_method_enrich(canonical_cld)
+if (!nrow(analysis_cld)) analysis_cld <- tibble::tibble(
+  Table=character(), Dataset_key=character(), Dataset=character(), Response=character(),
+  TRT=character(), SR=character(), Period=character(), .group=character(), CLD_Type=character())
+if (!"Period" %in% names(analysis_cld)) analysis_cld$Period <- NA_character_
+analysis_cld$Grouping_scope <- ifelse(grepl("Period", analysis_cld$CLD_Type),
+  "Period within TRT × SR", "Management cells; original replication eligibility")
+analysis_model_documentation <- original_method_enrich(canonical_model_documentation)
+analysis_model_summary <- analysis_model_documentation
+analysis_model_diagnostics <- original_method_enrich(canonical_model_diagnostics)
+analysis_influential_observations <- canonical_influential_observations
+analysis_distribution_audit <- canonical_distribution_audit
+analysis_diagnostic_objects <- canonical_diagnostic_objects
+analysis_response_cell_replication <- tibble::tibble()
+analysis_residual_variance_review <- tibble::tibble()
+analysis_random_effect_variances <- tibble::tibble()
+legacy_model_review <- tibble::tibble(Analysis = "Original canonical manuscript analysis",
+  Action = "Original family rules, robust fallback and RI/AR(1) selection restored; earlier source Gaussian results are exploratory only.")
+if (isTRUE(export_results)) {
+  model_dir <- file.path(analysis_output_dir, "02_Model_Results")
+  dir.create(model_dir, recursive = TRUE, showWarnings = FALSE)
+  saveRDS(canonical_fits, file.path(model_dir, "Original_Method_Models.rds"))
+}
 ```
 
 ### 9.12.1 Publication-ready manuscript tables
@@ -20832,7 +24083,7 @@ non-estimable results remain missing; no statistical numbers are fabricated.
 
 ### 9.12 Publication tables and analysis audits
 
-This layer formats the retained Gaussian mixed-model results. It does not fit
+This layer formats the restored original-method mixed-model results. It does not fit
 models, calculate EMMs, repeat post-hoc tests, or read exported files. The
 behavior table and its model-specific sample sizes come directly from
 `Table_1_Grazing_Behaviors` in Section 5.2; its retained presentation is the
@@ -21237,7 +24488,7 @@ publication_make_table <- function(worksheet_name, period = FALSE) {
 }
 
 # First behavior/movement analysis is authoritative, including monthly model n.
-Table1_Professional <- Table_1_Grazing_Behaviors
+Table1_Professional <- publication_make_table("Table_1_Grazing_Behaviors")
 Table2_Professional <- publication_make_table("Table2")
 Whole_Season_Additional_Professional <- publication_make_table("WholeSeason_Additional")
 Other_Period_EMMs_Professional <- publication_make_table("Pasture_RGP", period = TRUE)
@@ -21296,13 +24547,13 @@ Professional_Exploratory_Management_P_values <- professional_omnibus_long |>
   dplyr::filter(grepl("TRT|SR", Term),
                 is.finite(P_value_raw), !is.finite(P_value))
 Professional_Table_Notes <- tibble::tibble(Note = c(
-  "Values are retained Gaussian LMM EMM ± SE. A dash denotes unavailable/nonestimable results; no replacement values are imputed.",
+  "Values are original-method response-scale EMM ± SE. A dash denotes unavailable/nonestimable results; no replacement values are imputed.",
   "n is the number of fitted model observations. Observation_unit identifies animal versus pasture records; Scale in the raw results distinguishes season versus grazing-period observations. Physical pasture is the independent experimental unit for TRT/SR allocation, and Model_Summary retains animal, pasture and year counts. Repeated years/animals are not independent treatment replicates.",
   "P: TRT, P: SR and P: TRT × SR are retained Type III model tests. RGP models include the period main effect and all period interactions; period differences can vary across management combinations.",
   "Management P-values displayed where pasture cells are unreplicated are exploratory/conditional. Their limitations are shown in the Inference column; raw and reporting P-values remain distinct in the omnibus audit.",
   "Different letter groups refer only to the retained comparison scope and multiplicity adjustment. The CLD sheet records Grouping_scope and CLD_Type. Shared letters do not establish equivalence.",
   "Random-effect structure follows the retained experimental-unit/repeated-measure model. Year is random where supported, with no fixed-effect P: Year reported.",
-  "Table_1_Grazing_Behaviors preserves the Section 5.2 presentation and is the first worksheet of this workbook. Behavior EMMs and letters are included in the corresponding raw-result sheets; Table1_Reference_ANOVA preserves the full original reference Type III ANOVA rows and columns, including the intercept where present. Those behavior tests are not duplicated in Fixed_Effect_Omnibus, and no standalone Table 1 workbook is written.",
+  "Table_1_Grazing_Behaviors reports the restored original canonical animal-year behavior analysis and is the first worksheet. Table1_Reference_ANOVA contains its canonical omnibus tests; earlier monthly source fits are exploratory. No standalone Table 1 workbook is written.",
   "Table2 combines whole-season animal-performance and individual-animal responses. WholeSeason_Additional includes whole-season CH4 and CO2 per active hectare, area grazed and LWG per active hectare, alongside the distinct daily land rates. Moving a response between sheets does not change its dataset, model, sample size or inference.",
   "Whole-season daily land rates use whole-season gas totals or chute-derived pasture LWG divided by unique active hectares and pasture-specific season days. Missing/zero denominators yield missing responses.",
   "Residual Shapiro–Wilk tests, residual variance checks, Q–Q plots, convergence and singular-fit flags are evaluated together; a single normality P-value does not determine model validity."
@@ -21321,8 +24572,7 @@ publication_table_qc <- tibble::tibble(
   Has_required_columns = vapply(names(publication_table_objects), function(sheet) {
     required <- c("Variable", "n", publication_cells, "P: TRT", "P: SR")
     # Preserve the established behavior-table column names and presentation.
-    required <- c(required, if (sheet == "Table_1_Grazing_Behaviors")
-      "P: TRT * SR" else c("P: TRT × SR", "Observation_unit", "Inference"))
+    required <- c(required, "P: TRT × SR", "Observation_unit", "Inference")
     all(required %in% names(publication_table_objects[[sheet]]))
   }, logical(1)),
   Has_fixed_Year_P = vapply(publication_table_objects,
@@ -21344,7 +24594,7 @@ individual-animal ADG.
 
 ```{r publication-display-tables, results='asis', message=FALSE, warning=FALSE}
 publication_titles <- c(
-  Table_1_Grazing_Behaviors = "Grazing behavior and movement — retained Section 5.2 table",
+  Table_1_Grazing_Behaviors = "Grazing behavior and movement — original canonical animal-year analysis",
   Table2 = "Whole-season animal performance and individual-animal responses",
   WholeSeason_Additional = "Whole-season pasture responses, active area and land productivity",
   Pasture_RGP = "Pasture responses by grazing period",
@@ -21371,13 +24621,7 @@ exports in Section 9.11. Only nonempty sheets are written, and setting
 ```{r publication-statistical-exports, message=FALSE, warning=TRUE}
 # The final workbook owns the behavior table and its retained numerical results.
 # This is presentation/export reuse; no model or inference is recalculated here.
-publication_reference_anova <- dplyr::bind_rows(lapply(names(table1_results), function(variable_label) {
-  tab <- table1_results[[variable_label]]$anova
-  if (!is.data.frame(tab) || !nrow(tab)) return(NULL)
-  # Keep the original reference-test columns and every row, including intercept.
-  dplyr::bind_cols(tibble::tibble(Variable = rep(variable_label, nrow(tab))),
-                   tibble::as_tibble(tab))
-}))
+publication_reference_anova <- dplyr::filter(publication_retained_omnibus, Table == "TABLE 1")
 publication_model_metadata <- publication_optional("analysis_model_documentation")
 if (!nrow(publication_model_metadata)) publication_model_metadata <- analysis_model_summary
 professional_tables_excel <- c(publication_table_objects, list(

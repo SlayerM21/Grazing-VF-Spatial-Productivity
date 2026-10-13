@@ -2,22 +2,22 @@
   "source_file": "AFRI_CHAPTER_2_Master_Code_Year_Random.Rmd",
   "source_sha256": "80d420e290269268841b0348a8c53a2c1292d96461e54e08763a8161681f11cf",
   "revised_file": "AFRI_CHAPTER_2_Optimized.Rmd",
-  "revised_sha256": "110616591b54aa809e17cd17d8608d675bcdfffc35ee0c601154b01dde128df5",
+  "revised_sha256": "5e076bc610bbf8a32b68a0ed870a16d1129baf4f55ae4af31cff30f360b59fe6",
   "source_lines": 33602,
-  "revised_lines": 21608,
+  "revised_lines": 24852,
   "audit_rows": 191,
   "response_specifications": 44,
   "study_execution": "Not run: original HMM, BW, GreenFeed and GIS inputs unavailable",
-  "r_chunks_parsed": 206,
-  "requested_model_structure": "Year and physical Pasture random intercepts; period fixed effects TRT*SR*Period (Global GreenFeed TRT*SR*RotationPeriod); baseline TRT*SR; ANCOVA retains IBW",
+  "r_chunks_parsed": 216,
+  "requested_model_structure": "Restored original canonical response-family/AIC/fallback and RI/AR(1) methods; TRT*SR*Period interactions; Year and physical Pasture where estimable; original animal-period clustering",
   "global_greenfeed_name": "Global GreenFeed",
   "global_greenfeed_models": 2,
   "complete_model_catalog_entries": 56,
   "two_scale_output_directory": "05_Two_Scale_Analysis_maps",
   "period_interactions": "All two-way and three-way TRT, SR and Period interactions included",
-  "current_formula_validation": "206 chunks parsed; full-interaction model fitting and inference passed for Period, RGP and RotationPeriod; old additive fixed structures rejected; all 56 catalog formulas verified",
+  "current_formula_validation": "Passed original-method synthetic fitting/inference, Gamma diagnostics and workbook export/reopening; 216 parsed chunks; eight original statistical-method chunks copied verbatim. Full study knit/estimates unverified.",
   "current_model_formula_checks": 61,
-  "word_model_catalog": "AFRI_Variables_Models_and_Datasets.docx (56 model catalog entries; outside-RGP response rows removed)",
+  "word_model_catalog": "Restored original-method catalog: 44 canonical reporting and 12 exploratory/source entries",
   "two_scale_model_export_correction": {
     "scope": "Export filenames and writer diagnostics only; model identifiers, fits, data, additive formulas and inference preserved",
     "validation": "Passed: 8/8 targeted synthetic writer checks on Linux; all 206 R chunks/YAML/purl/extracted R parsed; actual Windows and study-data exports unverified",
@@ -158,14 +158,12 @@
     "stale_result_filter": "Reporting copies exclude response keys absent from the current registry; original environment objects are unchanged"
   },
   "prior_additive_statistical_synthetic_assertions": 59,
-  "word_document_sha256": "9747e2ab0e8b390cd6f5c1a7a11fbdf74579ab8169117b9d5437a35746173c33",
+  "word_document_sha256": "229d32e4a6afe2f8e8bfa21030fc6bd07899f20490dacc13de13c45e9988e587",
   "word_document_validation": {
-    "bytes": 29033,
+    "bytes": 25849,
     "model_entries": 56,
-    "tables": 10,
-    "descriptive_rows": 6,
-    "status": "ZIP integrity and removed-response absence checked; earlier visual/formatting evidence retained with original scope",
-    "evidence": "validation/Period_Interaction_Validation.txt"
+    "status": "Regenerated from restored model catalog; DOCX ZIP integrity checked; visual pagination not checked",
+    "evidence": "validation/Original_Methods_Restoration_Validation.txt"
   },
   "combined_removal_workbook_scope": {
     "unchanged_chunks": 199,
@@ -195,5 +193,23 @@
     "scope": "Removed period outside-RGP active-area calculations, aliases, response specification, label, and catalog/export records",
     "study_execution": "Not run: original research inputs absent",
     "validation": "206 chunks parsed; 44 retained response specifications unchanged; stale reporting rows filtered; catalogs and Word absence checked; ZIP contents synchronized"
+  },
+  "original_methods_restoration": {
+    "source_file": "AFRI_CHAPTER_2_Master_Code_Year_Random_10-9-2026.Rmd",
+    "source_sha256": "80d420e290269268841b0348a8c53a2c1292d96461e54e08763a8161681f11cf",
+    "canonical_responses": 44,
+    "original_methods_chunks_verbatim": 8,
+    "preserved_user_changes": [
+      "Full period interactions",
+      "Outside-RGP active-area response removal",
+      "Combined-gas response removal",
+      "Current workbook worksheet routing"
+    ],
+    "integration_changes": [
+      "Original output root mapped to 06_Statistical_Analysis",
+      "Current workbook metadata adapter; canonical fits own manuscript results",
+      "Retain failed-model registry positions without shortening the list"
+    ],
+    "study_execution": "Not run: original research input datasets absent"
   }
 }

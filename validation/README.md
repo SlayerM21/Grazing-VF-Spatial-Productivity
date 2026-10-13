@@ -1,3 +1,5 @@
+Current evidence: Original_Methods_Restoration_Validation.txt and executable Validate_Original_Methods.R. Original family, robust fitting/fallback, RI/AR(1), response-scale inference and diagnostics are restored; historical Gaussian-only records below retain their original scope.
+
 Current full period-interaction checks: Period_Interaction_Validation.txt. Earlier additive and removal records retain historical scope.
 
 Current outside-RGP area removal checks are in Outside_RGP_Removal_Validation.txt. They validate 206 parsed chunks, unchanged retained specifications, publication filtering and catalog consistency. Earlier records below retain their original revision scope.

@@ -61,10 +61,10 @@ changes a model or removes its experimental grouping factors.
 
 The latest requested specifications use random Year and physical Pasture
 intercepts for both season and period responses. Period models retain TRT × SR
-and add Period as a main effect: `TRT * SR + Period`. Global GreenFeed uses
-`TRT * SR + RotationPeriod` with random Year and Pasture. No management-by-period
-interaction, additional pasture-year intercept, or animal intercept is fitted.
-Management differences are assumed constant across periods; correlation within
+and include all interactions with Period: `TRT * SR * Period`. Global GreenFeed uses
+`TRT * SR * RotationPeriod` with random Year and Pasture. Management-by-period interactions are fitted. No additional pasture-year
+intercept or animal intercept is fitted.
+Management differences can vary across periods; correlation within
 repeated units beyond Year/Pasture clustering remains a stated limitation. The
 Global GreenFeed F specification matches its primary model, so it reuses that fit.
 The protected baseline models and initial-weight-adjusted final-weight ANCOVA
@@ -11505,7 +11505,7 @@ print(
 )
 
 # Three authoritative Gaussian LMMs. Period models use TRT * SR plus an
-# additive RGP effect and Year/physical Pasture random intercepts. Seasonal
+# full RGP interactions effect and Year/physical Pasture random intercepts. Seasonal
 # models use TRT * SR and the same grouping factors. Keep required
 # Year/Pasture terms even when variance is small or the fit is singular.
 pasture_design <- pasture_use_RGP %>%
@@ -11589,11 +11589,11 @@ bw_fit_area_model <- function(data, formula, model_name, scale_name) {
 pasture_use_models <- list(
   ALL_PASTURE_GRAZING__RGP = bw_fit_area_model(
     dplyr::filter(pasture_use_RGP, Grid_Map == "ALL_PASTURE_GRAZING"),
-    Active_ha ~ TRT * SR + RGP + (1 | Year) + (1 | Pasture_ID),
+    Active_ha ~ TRT * SR * RGP + (1 | Year) + (1 | Pasture_ID),
     "ALL_PASTURE_GRAZING__RGP", "RGP"),
   INSIDE_RGP_GRAZING__RGP = bw_fit_area_model(
     dplyr::filter(pasture_use_RGP, Grid_Map == "INSIDE_RGP_GRAZING"),
-    Active_ha ~ TRT * SR + RGP + (1 | Year) + (1 | Pasture_ID),
+    Active_ha ~ TRT * SR * RGP + (1 | Year) + (1 | Pasture_ID),
     "INSIDE_RGP_GRAZING__RGP", "RGP"),
   WHOLE_SEASON_GRAZING__Season = bw_fit_area_model(pasture_use_season,
     Active_ha ~ TRT * SR + (1 | Year) + (1 | Pasture_ID),
@@ -14281,12 +14281,11 @@ When reviewing the outputs, prioritize the following questions:
 The descriptive pasture-period models below use equal-weight means of contributing steer means. Sampling adequacy is audited in the final two-scale section of this report; the qualified steer-level repeated-measures models must await a supported period inclusion rule. Pasture is the experimental unit,
 rotation period is repeated within pasture-year, and year is fitted as a random
 intercept. At the user's request, each gas has one authoritative Gaussian model:
-`gas ~ TRT * SR + RotationPeriod + (1 | Year) + (1 | Pasture)`.
+`gas ~ TRT * SR * RotationPeriod + (1 | Year) + (1 | Pasture)`.
 
-The primary model includes treatment, stocking rate, their interaction, and an
-additive rotation-period effect. It assumes the same period effect across
-management combinations; treatment-by-period and stocking-rate-by-period
-interactions are not fitted or tested. Only year and pasture random intercepts
+The primary model includes treatment, stocking rate, rotation period, all
+pairwise interactions, and the treatment × stocking rate × rotation-period
+interaction. Treatment and stocking-rate differences can vary across periods. Only year and pasture random intercepts
 are included. These model
 correlation shared within years and within pastures; no additional pasture-year
 intercept or residual temporal correlation is fitted. This specified covariance
@@ -14423,11 +14422,11 @@ pasture-period means. No visit-level or animal-level row enters the ANOVA.
 # on a singular fit; diagnostics flag uncertainty rather than simplify design.
 gf_rotation_models <- list(
   CH4_primary = afri_fit_lmm(
-    CH4_g_d ~ TRT * SR + RotationPeriod + (1 | Year) +
+    CH4_g_d ~ TRT * SR * RotationPeriod + (1 | Year) +
       (1 | Pasture),
     ch4_rotation_model_data, "gf_global_period_CH4", REML = TRUE),
   CO2_primary = afri_fit_lmm(
-    CO2_g_d ~ TRT * SR + RotationPeriod + (1 | Year) +
+    CO2_g_d ~ TRT * SR * RotationPeriod + (1 | Year) +
       (1 | Pasture),
     co2_rotation_model_data, "gf_global_period_CO2", REML = TRUE)
 )
@@ -14445,9 +14444,8 @@ co2_rotation_year_random_anova <- gf_rotation_inference$CO2$anova
 ch4_rotation_emmeans <- gf_rotation_inference$CH4$emm
 co2_rotation_emmeans <- gf_rotation_inference$CO2$emm
 
-# Use the additive fitted model's reference grids for TRT comparisons and
-# letters. Full cells are retained for reporting; the additive period effect
-# implies the same treatment contrast across periods within a stocking rate.
+# Use the full interaction model's reference grids for TRT comparisons and
+# letters. Treatment contrasts can differ by period and stocking rate.
 # The second
 # comparison below asks about temporal differences within TRT x SR and reuses
 # the same fitted model; it is not a second statistical model.
@@ -14491,7 +14489,7 @@ p_ch4_rotation_ggplot <- ggplot(ch4_rotation_emmeans_df,
   geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL),
                 position = position_dodge(width = 0.8), width = 0.2) +
   facet_wrap(~ SR) + labs(title = "Estimated CH4 emissions by RGP",
-    subtitle = "Global pasture-period means; additive period, Year/Pasture Gaussian LMM",
+    subtitle = "Global pasture-period means; full period interactions, Year/Pasture Gaussian LMM",
     x = "RGP", y = "CH4 emission (g/day)", fill = "Treatment") + theme_bw()
 print(p_ch4_rotation_ggplot)
 ```
@@ -14533,7 +14531,7 @@ p_co2_rotation_ggplot <- ggplot2::ggplot(
     title = "Estimated CO2 emissions by RGP",
     subtitle = paste(
       "Global pasture-period means;",
-      "additive period, Year/Pasture mixed model"
+      "full period interactions, Year/Pasture mixed model"
     ),
     x = "RGP",
     y = "CO2 emission (g/day)",
@@ -14555,8 +14553,8 @@ p_co2_rotation_ggplot
 ```{r gf-combine-direct-model-results}
 # Reuse fixed-effect tests, EMMs and pairwise results from the retained models.
 type3_anova_results <- bind_rows(
-  gf_rotation_inference$CH4$anova %>% mutate(Gas = "CH4", Specification = "Primary: year random; additive period"),
-  gf_rotation_inference$CO2$anova %>% mutate(Gas = "CO2", Specification = "Primary: year random; additive period")
+  gf_rotation_inference$CH4$anova %>% mutate(Gas = "CH4", Specification = "Primary: year random; full period interactions"),
+  gf_rotation_inference$CO2$anova %>% mutate(Gas = "CO2", Specification = "Primary: year random; full period interactions")
 ) %>% mutate(TimeEffect = "Rotation Period")
 
 gf_rotation_reporting_table <- function(gas, model_data, inference) {
@@ -14579,7 +14577,7 @@ gf_rotation_reporting_table <- function(gas, model_data, inference) {
     mutate(Response = gas, EMM_plus_SE = sprintf("%.2f ± %.2f", emmean, SE),
       P_TRT = p_for("TRT"), P_SR = p_for("SR"), P_TRT_SR = p_for("TRT:SR"),
       Letters_Status = if_else(is.na(.group), "Unavailable; review inference diagnostic", "Available"),
-      Letter_Comparison = "TRT within SR x RGP; Tukey; common additive period effect",
+      Letter_Comparison = "TRT within SR x RGP; Tukey; period-specific interaction contrasts",
       n_Unit = "Pasture-period observations", .before = 1)
 }
 all_emmeans <- bind_rows(
@@ -14587,10 +14585,10 @@ all_emmeans <- bind_rows(
   gf_rotation_reporting_table("CO2_g_d", co2_rotation_model_data, gf_rotation_inference$CO2)
 )
 all_tukey <- bind_rows(
-  ch4_rotation_tukey_df %>% mutate(Gas = "CH4", Comparison = "TRT within SR x RGP; common additive period effect"),
-  co2_rotation_tukey_df %>% mutate(Gas = "CO2", Comparison = "TRT within SR x RGP; common additive period effect"),
-  ch4_period_tukey_df %>% mutate(Gas = "CH4", Comparison = "RGP within TRT x SR; common additive period effect"),
-  co2_period_tukey_df %>% mutate(Gas = "CO2", Comparison = "RGP within TRT x SR; common additive period effect")
+  ch4_rotation_tukey_df %>% mutate(Gas = "CH4", Comparison = "TRT within SR x RGP; period-specific interaction contrasts"),
+  co2_rotation_tukey_df %>% mutate(Gas = "CO2", Comparison = "TRT within SR x RGP; period-specific interaction contrasts"),
+  ch4_period_tukey_df %>% mutate(Gas = "CH4", Comparison = "RGP within TRT x SR; period-specific interaction contrasts"),
+  co2_period_tukey_df %>% mutate(Gas = "CO2", Comparison = "RGP within TRT x SR; period-specific interaction contrasts")
 )
 all_cv_results <- bind_rows(ch4_rotation_cv %>% mutate(Gas = "CH4"),
                             co2_rotation_cv %>% mutate(Gas = "CO2"))
@@ -14614,7 +14612,7 @@ stopifnot(all(rotation_random_structure_qc$Pasture_random_intercept),
           all(rotation_random_structure_qc$Year_random_intercept),
           all(rotation_random_structure_qc$Only_Year_Pasture_random_intercepts))
 knitr::kable(all_emmeans, digits = 3,
-  caption = "Global Gaussian LMM with additive period; management inference is exploratory with one pasture per TRT x SR")
+  caption = "Global Gaussian LMM with full period interactions; management inference is exploratory with one pasture per TRT x SR")
 knitr::kable(model_diagnostics, digits = 4,
              caption = "Global pasture-period Gaussian LMM diagnostics")
 purrr::walk(gf_rotation_diagnostics, function(diagnostic) {
@@ -15113,7 +15111,7 @@ if (nrow(gf_period_qualified)) {
       return(NULL)
     }
     f <- stats::as.formula(paste(response,
-      "~ TRT * SR + Period + (1 | Year) + (1 | Pasture)"))
+      "~ TRT * SR * Period + (1 | Year) + (1 | Pasture)"))
     fit_conditional_question(f, d, paste0("qualified_RGP_", response))
   }
   ch4_period_model <- fit_gas("CH4_g_d")
@@ -16731,7 +16729,7 @@ Land productivity is the estimated pasture liveweight gain divided by the
 active hectares of the corresponding grid. The primary period gain models are fitted once in Section 9.10. An additional
 synchronized-window sensitivity is fitted only when the matching-window rule
 excludes otherwise available gain observations. Unique percent-use
-models use treatment × stocking rate plus additive RGP at the period scale and
+models use treatment × stocking rate plus full RGP interactions at the period scale and
 treatment × stocking rate for the pooled seasonal grid. Period models use the requested
 Year and Pasture random intercepts. The percentage of each
 pasture observed grazed is modeled separately to compare pastures of
@@ -16800,7 +16798,7 @@ for (scale_name in names(model_outcomes)) {
       if (scale_name == "RGP") d <- d %>% dplyr::mutate(
         RGP = factor(RGP, levels = paste0("RGP", 1:5)))
       rhs <- if (scale_name == "RGP")
-        "TRT * SR + RGP + (1 | Year) + (1 | Pasture_ID)"
+        "TRT * SR * RGP + (1 | Year) + (1 | Pasture_ID)"
         else "TRT * SR + (1 | Pasture_ID) + (1 | Year)"
       fitted_model <- NULL
       status <- "Ready"
@@ -19884,7 +19882,7 @@ reporting; available raw model-based tests remain explicitly exploratory and may
 shown with that limitation in the publication tables.
 
 All responses use the requested Year and physical Pasture random intercepts.
-Period responses include `TRT * SR + Period` as fixed effects; whole-season and
+Period responses include `TRT * SR * Period` as fixed effects; whole-season and
 preserved monthly reference responses retain `TRT * SR`. No additional pasture-year
 or animal random intercept is included. Pasture-year and animal-year identifiers
 remain available for observation keys and sample-count audits only. These requested
@@ -19892,10 +19890,9 @@ models may leave additional within-animal, pasture-year, or serial correlation
 unmodeled; the publication and model documentation retain that limitation. Grouping
 factors are not removed because of a singular fit. The three observed years give
 limited precision for year variance. The protected monthly reference models and
-their original results are preserved. The additive Period effect estimates a common
-period pattern across treatment and stocking-rate cells. EMM requests still cover
-all `TRT × SR × Period` cells; that prediction grid does not add Period interactions
-to the fitted model.
+their original results are preserved. The Period interactions allow period patterns to vary across treatment and
+stocking-rate cells. EMM requests cover all `TRT × SR × Period` cells from the
+full interaction model.
 
 Gaussian diagnostics, including applicable Shapiro–Wilk tests, are descriptive checks.
 A significant normality test does not trigger deletion, transformation, or a different
@@ -20254,7 +20251,8 @@ afri_fixed_term_signature <- function(model) {
   }, character(1)))
 }
 afri_requested_fixed_terms <- function(scale) {
-  sort(c("TRT", "SR", "SR:TRT", if (scale == "period") "Period"))
+  sort(c("TRT", "SR", "SR:TRT", if (scale == "period")
+    c("Period", "Period:TRT", "Period:SR", "Period:SR:TRT")))
 }
 afri_fit_one_response <- function(spec_row, fits) {
   key <- spec_row$Dataset_key[[1L]]
@@ -20304,7 +20302,7 @@ afri_fit_one_response <- function(spec_row, fits) {
     fit$repeated_structure <- "(1 | Year) + (1 | Pasture)"
   } else {
     data <- afri_prepare_model_data(analysis_datasets[[key]], response, scale, unit, subject)
-    fixed <- if (scale == "period") "TRT * SR + Period" else "TRT * SR"
+    fixed <- if (scale == "period") "TRT * SR * Period" else "TRT * SR"
     random <- "(1 | Year) + (1 | Pasture)"
     formula <- stats::as.formula(paste(response, "~", fixed, "+", random))
     fit$data <- data
@@ -20439,9 +20437,9 @@ afri_fit_one_response <- function(spec_row, fits) {
   fitted_terms <- afri_fixed_term_signature(fit$model)
   if (!identical(fitted_terms, afri_requested_fixed_terms(scale))) {
     stop(response, ": retained source model does not match the requested fixed-effects structure (TRT * SR",
-      if (scale == "period") " + additive Period" else "", "); rerun its source model chunks. No competing model fitted.")
+      if (scale == "period") " + full Period interactions" else "", "); rerun its source model chunks. No competing model fitted.")
   }
-  fit$fixed_structure <- if (scale == "period") "TRT * SR + Period" else "TRT * SR"
+  fit$fixed_structure <- if (scale == "period") "TRT * SR * Period" else "TRT * SR"
   fit$actual_fixed_terms <- fitted_terms
   fit$repeated_structure <- paste(paste0("(1 | ", fitted_groups, ")"), collapse = " + ")
   fit$formula <- paste(deparse(stats::formula(fit$model)), collapse = " ")
@@ -20452,7 +20450,7 @@ afri_fit_one_response <- function(spec_row, fits) {
   fit$inference_note <- paste(if (fit$management_replicated) "Replicated physical-pasture factorial cells." else
     "Exploratory/conditional management inference: fewer than two independent physical pastures in a TRT × SR cell.",
     fit$correlation_limitation,
-    if (scale == "period") "Period is additive: treatment/stocking-rate-specific period patterns are not estimated." else "")
+    if (scale == "period") "Period interacts with treatment and stocking rate; period-specific management patterns are estimated." else "")
   fit
 }
 
@@ -20554,7 +20552,7 @@ afri_get_emmeans <- function(fit) {
   tab$TRT <- afri_normalize_trt(tab$TRT)
   tab$SR <- afri_normalize_sr(tab$SR)
   tab$EMM_Spec <- if (fit$scale == "period")
-    "TRT * SR * Period prediction grid; fitted fixed effects TRT * SR + Period" else "TRT * SR"
+    "TRT * SR * Period prediction grid; fitted fixed effects TRT * SR * Period" else "TRT * SR"
   tab$Distribution <- "Gaussian"
   tab$Link <- "identity"
   tab$Inference_note <- fit$inference_note
@@ -20722,7 +20720,7 @@ analysis_random_structure_qc <- dplyr::bind_rows(lapply(analysis_fits, function(
     Actual_random_groups = paste(groups, collapse = "; "),
     Matches_requested_random_structure = length(groups) == 2L &&
       any(groups %in% c("Year", "YearFactor")) && any(groups %in% c("Pasture", "Pasture_ID")),
-    Requested_fixed_effects = if (fit$scale == "period") "TRT * SR + Period" else "TRT * SR",
+    Requested_fixed_effects = if (fit$scale == "period") "TRT * SR * Period" else "TRT * SR",
     Actual_fixed_terms = paste(afri_fixed_term_signature(fit$model), collapse = "; "),
     Matches_requested_fixed_structure = identical(afri_fixed_term_signature(fit$model), afri_requested_fixed_terms(fit$scale)),
     Repeated_observation_note = fit$correlation_limitation,
@@ -20750,7 +20748,7 @@ analysis_model_documentation <- dplyr::bind_rows(lapply(analysis_fits, function(
       fit$correlation_limitation, fit$source, fit$inference_note),
     `Model diagnostics` = "Applicable Shapiro–Wilk, residual-fitted, Q–Q, scale-location, random-effect variances, singularity, convergence; flagged rows retained.",
     `Omnibus tests` = if (fit$dataset_key == "table1") "Preserved reference Type III tests" else paste("lmerTest Type III;", fit$inference$df_method),
-    `Estimated marginal means` = if (fit$scale == "period") "Retained TRT × SR × Period prediction grid from the additive Period model" else "Retained TRT × SR grid",
+    `Estimated marginal means` = if (fit$scale == "period") "Retained TRT × SR × Period prediction grid from the full Period interactions model" else "Retained TRT × SR grid",
     `Relevant pairwise comparisons` = if (fit$scale == "period") "Retained grid pairs; Period within TRT × SR" else "Retained TRT × SR grid pairs",
     `Compact-letter displays` = if (fit$scale == "period") "Period within TRT × SR; no management letters without pasture replication" else "Management letters withheld without pasture replication"), fit)
 }))
@@ -21300,7 +21298,7 @@ Professional_Exploratory_Management_P_values <- professional_omnibus_long |>
 Professional_Table_Notes <- tibble::tibble(Note = c(
   "Values are retained Gaussian LMM EMM ± SE. A dash denotes unavailable/nonestimable results; no replacement values are imputed.",
   "n is the number of fitted model observations. Observation_unit identifies animal versus pasture records; Scale in the raw results distinguishes season versus grazing-period observations. Physical pasture is the independent experimental unit for TRT/SR allocation, and Model_Summary retains animal, pasture and year counts. Repeated years/animals are not independent treatment replicates.",
-  "P: TRT, P: SR and P: TRT × SR are retained Type III model tests. RGP tables show the additive period test; period differences are common across management combinations under this model.",
+  "P: TRT, P: SR and P: TRT × SR are retained Type III model tests. RGP models include the period main effect and all period interactions; period differences can vary across management combinations.",
   "Management P-values displayed where pasture cells are unreplicated are exploratory/conditional. Their limitations are shown in the Inference column; raw and reporting P-values remain distinct in the omnibus audit.",
   "Different letter groups refer only to the retained comparison scope and multiplicity adjustment. The CLD sheet records Grouping_scope and CLD_Type. Shared letters do not establish equivalence.",
   "Random-effect structure follows the retained experimental-unit/repeated-measure model. Year is random where supported, with no fixed-effect P: Year reported.",

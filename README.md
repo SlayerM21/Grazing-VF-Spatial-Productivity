@@ -17,9 +17,9 @@ Global GreenFeed contains one Year-random model for CH4 and one for CO2. The sep
 
 Unique two-scale outputs use `Chapter_2_Results/05_Two_Scale_Analysis_maps/`, with numbered subfolders for tables, models, figures, maps, and spatial datasets.
 
-P, A, and Q period models use `TRT * SR + Period`; Global GreenFeed uses `TRT * SR + RotationPeriod`. All retain random Year and physical Pasture intercepts. Treatment × stocking rate remains; period interactions are removed. Baseline S and the final-weight ANCOVA C remain unchanged. The protected HMM/GPS specifications are preserved.
+P, A, and Q period models use `TRT * SR * Period`; Global GreenFeed uses `TRT * SR * RotationPeriod`. All retain random Year and physical Pasture intercepts. Treatment × stocking rate remains; period interactions are included. Baseline S and the final-weight ANCOVA C remain unchanged. The protected HMM/GPS specifications are preserved.
 
-When applying the additive-period model specifications, start a fresh R session and rerun the analysis so its tables use newly fitted objects.
+When applying the full period-interaction model specifications, start a fresh R session and rerun the analysis so its tables use newly fitted objects.
 
 For the combined-gas removal and workbook reorganization, use the complete updated Rmd in a fresh R session so the integrated datasets and model lists contain only the retained responses. The surviving model formulas are unchanged. Publication chunks reuse the retained results; their exports also filter obsolete response records from older session objects.
 

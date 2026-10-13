@@ -1,3 +1,5 @@
+Current full period-interaction checks: Period_Interaction_Validation.txt. Earlier additive and removal records retain historical scope.
+
 Current outside-RGP area removal checks are in Outside_RGP_Removal_Validation.txt. They validate 206 parsed chunks, unchanged retained specifications, publication filtering and catalog consistency. Earlier records below retain their original revision scope.
 
 # Validation evidence

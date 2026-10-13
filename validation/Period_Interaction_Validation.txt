@@ -1,0 +1,18 @@
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+Parsed 206 R chunks from AFRI_CHAPTER_2_Optimized.Rmd 
+Warning message:
+the ‘nobars’ function has moved to the reformulas package. Please update your imports, or ask an upstream package maintainer to do so. 
+PASS: three period aliases fit full interactions; audit rejects additive fits; Year/Pasture preserved
+PASS: 56 catalog entries; no additive period formulas remain
+
+PASS: all 56 catalog formulas match only the requested period-interaction substitution. Study-data models/full knit not run: original datasets absent. Older validation records retain their original revision scope.

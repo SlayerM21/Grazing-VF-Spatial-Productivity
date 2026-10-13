@@ -2,20 +2,20 @@
   "source_file": "AFRI_CHAPTER_2_Master_Code_Year_Random.Rmd",
   "source_sha256": "80d420e290269268841b0348a8c53a2c1292d96461e54e08763a8161681f11cf",
   "revised_file": "AFRI_CHAPTER_2_Optimized.Rmd",
-  "revised_sha256": "71a7f555bd02ee1c2497412eaa5af9fa6113faaea51d63c40f1e0af3d7696b1d",
+  "revised_sha256": "110616591b54aa809e17cd17d8608d675bcdfffc35ee0c601154b01dde128df5",
   "source_lines": 33602,
-  "revised_lines": 21610,
+  "revised_lines": 21608,
   "audit_rows": 191,
   "response_specifications": 44,
   "study_execution": "Not run: original HMM, BW, GreenFeed and GIS inputs unavailable",
   "r_chunks_parsed": 206,
-  "requested_model_structure": "Random Year and physical Pasture only; period fixed effects TRT*SR+Period (Global GreenFeed TRT*SR+RotationPeriod); baseline TRT*SR; ANCOVA retains IBW",
+  "requested_model_structure": "Year and physical Pasture random intercepts; period fixed effects TRT*SR*Period (Global GreenFeed TRT*SR*RotationPeriod); baseline TRT*SR; ANCOVA retains IBW",
   "global_greenfeed_name": "Global GreenFeed",
   "global_greenfeed_models": 2,
   "complete_model_catalog_entries": 56,
   "two_scale_output_directory": "05_Two_Scale_Analysis_maps",
-  "period_interactions": "None: no TRT:Period, SR:Period or TRT:SR:Period terms; TRT:SR retained",
-  "current_formula_validation": "See validation/Outside_RGP_Removal_Validation.txt for current removal checks; earlier validation records describe their original revision.",
+  "period_interactions": "All two-way and three-way TRT, SR and Period interactions included",
+  "current_formula_validation": "206 chunks parsed; full-interaction model fitting and inference passed for Period, RGP and RotationPeriod; old additive fixed structures rejected; all 56 catalog formulas verified",
   "current_model_formula_checks": 61,
   "word_model_catalog": "AFRI_Variables_Models_and_Datasets.docx (56 model catalog entries; outside-RGP response rows removed)",
   "two_scale_model_export_correction": {
@@ -158,14 +158,14 @@
     "stale_result_filter": "Reporting copies exclude response keys absent from the current registry; original environment objects are unchanged"
   },
   "prior_additive_statistical_synthetic_assertions": 59,
-  "word_document_sha256": "619ea6b8c1e483dc4d8f4fdcfcb72739823e0d9a1a4f8c0d9bf4a93f2bef96b4",
+  "word_document_sha256": "9747e2ab0e8b390cd6f5c1a7a11fbdf74579ab8169117b9d5437a35746173c33",
   "word_document_validation": {
-    "bytes": 29020,
+    "bytes": 29033,
     "model_entries": 56,
     "tables": 10,
     "descriptive_rows": 6,
     "status": "ZIP integrity and removed-response absence checked; earlier visual/formatting evidence retained with original scope",
-    "evidence": "validation/Outside_RGP_Removal_Validation.txt"
+    "evidence": "validation/Period_Interaction_Validation.txt"
   },
   "combined_removal_workbook_scope": {
     "unchanged_chunks": 199,

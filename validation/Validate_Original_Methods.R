@@ -38,7 +38,7 @@ for(key in unique(canonical_specs$Dataset_key)){
 # Preserve within-year repeated animal identifiers for the animal-period fixture.
 canonical_datasets$shrunk_period$SEID<-paste(canonical_datasets$shrunk_period$Year,canonical_datasets$shrunk_period$Pasture)
 canonical_datasets$shrunk_period$REAL_ID<-canonical_datasets$shrunk_period$SEID
-selected<-filter(canonical_specs,Response %in% c('Grazing_h','Traveling_h','active_ha_all_pasture','CH4_g_per_active_ha_all_pasture','CH4_g_per_active_ha_inside_rgp','LWG_kg_per_active_ha_all_pasture','RGP_CH4_g_day'))
+selected<-filter(canonical_specs,Response %in% c('active_ha_all_pasture','CH4_g_per_active_ha_all_pasture','CH4_g_per_active_ha_inside_rgp','LWG_kg_per_active_ha_all_pasture','RGP_CH4_g_day'))
 canonical_specs<-selected
 canonical_fits<-list()
 for(i in seq_len(nrow(selected))){
@@ -64,8 +64,11 @@ eval(parse(text=chunks[['original-method-workbook-adapter']]))
 stopifnot(all(is.finite(analysis_emmeans$EMM)),all(is.finite(analysis_emmeans$SE)),all(analysis_emmeans$SE>0))
 cat('PASS: original response-scale EMM/real SE, Type III tests, contrasts/CLDs and workbook adapter\n')
 # Publication tables must consume restored results, including canonical Table 1.
+# Monthly Table 1 reuse is covered by Validate_Monthly_Source_Reuse.R.
+Table_1_Grazing_Behaviors<-tibble(Variable=character(),n=integer())
+for(nm in c('Continuous Light','Continuous Moderate','Continuous Heavy','Rotational Light','Rotational Moderate','Rotational Heavy','P: TRT','P: SR','P: TRT * SR'))Table_1_Grazing_Behaviors[[nm]]<-character()
 eval(parse(text=chunks[['publication-table-builders']]))
-stopifnot(nrow(Table1_Professional)==2,nrow(Other_Period_EMMs_Professional)>0)
+stopifnot(nrow(Table1_Professional)==0,nrow(Other_Period_EMMs_Professional)>0)
 cat('PASS: current publication tables use original-method outputs\n')
 # Exercise original GLMM diagnostics and current workbook writer, using temporary outputs.
 diag <- afri_model_diagnostics(canonical_fits[['period_pasture__CH4_g_per_active_ha_all_pasture']])
@@ -75,7 +78,7 @@ export_results<-TRUE
 analysis_output_dir<-file.path(tempdir(),'restored-method-workbook')
 eval(parse(text=chunks[['publication-statistical-exports']]))
 w<-openxlsx::loadWorkbook(professional_excel_file)
-stopifnot(all(c('Table_1_Grazing_Behaviors','Pasture_RGP','Model_Summary') %in% names(w)))
+stopifnot(all(c('Pasture_RGP','Model_Summary') %in% names(w)))
 raw<-openxlsx::read.xlsx(w,sheet='EMMs_Raw')
 stopifnot(nrow(raw)==nrow(analysis_emmeans),all(is.finite(raw$SE)))
 cat('PASS: statistical workbook written and reopened with restored-model estimates/SEs\n')

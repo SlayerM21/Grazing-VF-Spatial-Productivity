@@ -2,20 +2,20 @@
   "source_file": "AFRI_CHAPTER_2_Master_Code_Year_Random.Rmd",
   "source_sha256": "80d420e290269268841b0348a8c53a2c1292d96461e54e08763a8161681f11cf",
   "revised_file": "AFRI_CHAPTER_2_Optimized.Rmd",
-  "revised_sha256": "5e076bc610bbf8a32b68a0ed870a16d1129baf4f55ae4af31cff30f360b59fe6",
+  "revised_sha256": "0a801e2fc7ac26f26461b029c9fd848b0f1616655e1974626d56039ffe9471bd",
   "source_lines": 33602,
-  "revised_lines": 24852,
+  "revised_lines": 24927,
   "audit_rows": 191,
   "response_specifications": 44,
   "study_execution": "Not run: original HMM, BW, GreenFeed and GIS inputs unavailable",
   "r_chunks_parsed": 216,
-  "requested_model_structure": "Restored original canonical response-family/AIC/fallback and RI/AR(1) methods; TRT*SR*Period interactions; Year and physical Pasture where estimable; original animal-period clustering",
+  "requested_model_structure": "Table 1 reuses original monthly Gaussian ML Year/Pasture models; other restored original canonical response-family and RI/AR(1) methods unchanged",
   "global_greenfeed_name": "Global GreenFeed",
   "global_greenfeed_models": 2,
   "complete_model_catalog_entries": 56,
   "two_scale_output_directory": "05_Two_Scale_Analysis_maps",
   "period_interactions": "All two-way and three-way TRT, SR and Period interactions included",
-  "current_formula_validation": "Passed original-method synthetic fitting/inference, Gamma diagnostics and workbook export/reopening; 216 parsed chunks; eight original statistical-method chunks copied verbatim. Full study knit/estimates unverified.",
+  "current_formula_validation": "Passed four-source Gaussian ML identity reuse, cached EMM/SE equivalence, Type III Wald equivalence and exact source table XLSX round trip; other original-method tests pass; all 216 chunks parse.",
   "current_model_formula_checks": 61,
   "word_model_catalog": "Restored original-method catalog: 44 canonical reporting and 12 exploratory/source entries",
   "two_scale_model_export_correction": {
@@ -158,9 +158,9 @@
     "stale_result_filter": "Reporting copies exclude response keys absent from the current registry; original environment objects are unchanged"
   },
   "prior_additive_statistical_synthetic_assertions": 59,
-  "word_document_sha256": "229d32e4a6afe2f8e8bfa21030fc6bd07899f20490dacc13de13c45e9988e587",
+  "word_document_sha256": "8e027496d19471c8b58d59caf73f0aaf2120f7738c548fa02362a220c53c639c",
   "word_document_validation": {
-    "bytes": 25849,
+    "bytes": 26255,
     "model_entries": 56,
     "status": "Regenerated from restored model catalog; DOCX ZIP integrity checked; visual pagination not checked",
     "evidence": "validation/Original_Methods_Restoration_Validation.txt"
@@ -211,5 +211,29 @@
       "Retain failed-model registry positions without shortening the list"
     ],
     "study_execution": "Not run: original research input datasets absent"
+  },
+  "monthly_table1_source_reuse": {
+    "responses": [
+      "Grazing_h",
+      "Resting_h",
+      "Traveling_h",
+      "mean_DDT_day"
+    ],
+    "source_models": [
+      "mod.Monthly_Grazing",
+      "mod.Monthly_Resting",
+      "mod.Monthly_Traveling",
+      "mod.Monthly_DDT_filtered"
+    ],
+    "family": "Gaussian identity",
+    "fit": "Maximum likelihood; existing source objects reused without refit",
+    "tests": "Source Type III Wald chi-square; existing EMM/SE/CLDs reused",
+    "attached_summary_sample_sizes": {
+      "Grazing_h": 872,
+      "Resting_h": 879,
+      "Traveling_h": 872,
+      "mean_DDT_day": 938
+    },
+    "validation": "Synthetic source-object identity, nobs and EMM/SE/Wald equivalence, source Table 1 XLSX equality; study-data numerical reproduction not run without original inputs"
   }
 }

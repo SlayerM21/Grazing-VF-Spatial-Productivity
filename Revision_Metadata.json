@@ -2,13 +2,13 @@
   "source_file": "AFRI_CHAPTER_2_Master_Code_Year_Random.Rmd",
   "source_sha256": "80d420e290269268841b0348a8c53a2c1292d96461e54e08763a8161681f11cf",
   "revised_file": "AFRI_CHAPTER_2_Optimized.Rmd",
-  "revised_sha256": "50849d94f82f91f91ed81f43ae6e34014a3cf23aade288c4e7758d6e3764dfb4",
+  "revised_sha256": "5749874d5bb4f179b4cce22efb97c6e985596611a014a3625e5a4fc09aba436e",
   "source_lines": 33602,
-  "revised_lines": 24988,
+  "revised_lines": 25016,
   "audit_rows": 191,
   "response_specifications": 44,
   "study_execution": "Not run: original HMM, BW, GreenFeed and GIS inputs unavailable",
-  "r_chunks_parsed": 216,
+  "r_chunks_parsed": 217,
   "requested_model_structure": "Table 1 reuses original monthly Gaussian ML Year/Pasture models; other restored original canonical response-family and RI/AR(1) methods unchanged",
   "global_greenfeed_name": "Global GreenFeed",
   "global_greenfeed_models": 2,
@@ -246,5 +246,17 @@
     "minimum_finite_residuals": 5,
     "interpretation": "Descriptive normality test; not DHARMa uniformity. Pearson normality exploratory for non-Gaussian models; residual dependence affects iid calibration.",
     "validation": "validation/Lilliefors_Validation.txt"
+  },
+  "bw_eda_figure_exports": {
+    "directory": "02_Grazing_BW_AFRI/03_Figures",
+    "count": 6,
+    "format": "TIFF",
+    "width_inches": 12,
+    "height_inches": 8,
+    "dpi": 300,
+    "compression": "LZW",
+    "background": "white",
+    "validation": "Six synthetic EDA plots exported, TIFF headers/nonempty files verified; export_results=false writes nothing; repeat exports retain six filenames; plot calculations unchanged",
+    "study_data_execution": "Not run: research inputs absent"
   }
 }

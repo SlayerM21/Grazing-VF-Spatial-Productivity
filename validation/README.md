@@ -1,3 +1,5 @@
+Current BW EDA export evidence: BW_EDA_Export_Validation.txt and Validate_BW_EDA_Exports.R (six TIFFs, disabled exports and repeatability).
+
 Current KS/Lilliefors evidence: Lilliefors_Validation.txt and Validate_Lilliefors.R; workbook integration is also checked by both existing synthetic suites.
 
 Current Table 1 evidence: Monthly_Source_Reuse_Validation.txt and Validate_Monthly_Source_Reuse.R. These four responses reuse original monthly Gaussian ML models and source tables. Validate_Original_Methods.R now covers the other canonical methods. Older season-mean Table 1 evidence retains historical scope.

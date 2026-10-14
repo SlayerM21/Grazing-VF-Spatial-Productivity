@@ -1,0 +1,17 @@
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+null device 
+          1 
+PASS: all chunks parse; six real EDA plots; six nonempty TIFF exports; disabled exports write nothing; repeat exports remain six files
+
+PASS: all six EDA calculations/plot expressions unchanged from preceding Git revision.
+Scope: synthetic fixtures only; actual study-data render not run without research inputs.

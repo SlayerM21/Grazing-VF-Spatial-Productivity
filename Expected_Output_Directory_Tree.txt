@@ -20,7 +20,7 @@ Chapter_2_Results/
 ├── 02_Grazing_BW_AFRI/
 │   ├── 01_Tables/
 │   ├── 02_Model_Results/                # splines, authoritative ADG/area fits
-│   ├── 03_Figures/                      # final knitr SVGs
+│   ├── 03_Figures/                      # six BW EDA TIFFs + report SVGs
 │   ├── 04_Maps/                         # distinct final knitr SVG layouts
 │   ├── 05_Spatial_Data/period_production_sf.gpkg
 │   └── 06_Logs/                         # BW export/checksum audits

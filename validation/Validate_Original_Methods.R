@@ -8,7 +8,7 @@ for(line in lines){
  if(active)code<-c(code,line)
 }
 for(code in chunks)invisible(parse(text=code));cat('PASS: all',length(chunks),'R chunks parse\n')
-for(name in names(chunks)[grepl('^canonical-',names(chunks))]){
+for(name in c('shared-runtime',names(chunks)[grepl('^canonical-',names(chunks))])){
  for(e in as.list(parse(text=chunks[[name]]))){
   if(is.call(e)&&identical(e[[1]],as.name('<-'))&&is.call(e[[3]])&&identical(e[[3]][[1]],as.name('function')))eval(e)
  }
@@ -72,7 +72,7 @@ stopifnot(nrow(Table1_Professional)==0,nrow(Other_Period_EMMs_Professional)>0)
 cat('PASS: current publication tables use original-method outputs\n')
 # Exercise original GLMM diagnostics and current workbook writer, using temporary outputs.
 diag <- afri_model_diagnostics(canonical_fits[['period_pasture__CH4_g_per_active_ha_all_pasture']])
-stopifnot(nrow(diag$summary)==1)
+stopifnot(nrow(diag$summary)==1,is.finite(diag$summary$Lilliefors_D),is.finite(diag$summary$Lilliefors_p))
 cat('PASS: original Gamma model diagnostics executed\n')
 export_results<-TRUE
 analysis_output_dir<-file.path(tempdir(),'restored-method-workbook')
@@ -81,6 +81,7 @@ w<-openxlsx::loadWorkbook(professional_excel_file)
 stopifnot(all(c('Pasture_RGP','Model_Summary') %in% names(w)))
 raw<-openxlsx::read.xlsx(w,sheet='EMMs_Raw')
 stopifnot(nrow(raw)==nrow(analysis_emmeans),all(is.finite(raw$SE)))
+stopifnot('KS_Lilliefors_All_Models' %in% names(w))
 cat('PASS: statistical workbook written and reopened with restored-model estimates/SEs\n')
 
 grDevices::dev.off()

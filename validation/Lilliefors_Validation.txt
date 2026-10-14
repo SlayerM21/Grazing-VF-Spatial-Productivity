@@ -1,0 +1,5 @@
+PASS: helper matches nortest::lillie.test exactly for normal, skewed and nonfinite-input fixtures; small/constant inputs reported unavailable.
+PASS: all 216 R chunks parse.
+PASS: Gaussian monthly source model/EMM/SE/Wald reuse and exact Table 1 workbook round trip remain unchanged; KS_Lilliefors_All_Models written and reopened with finite statistics.
+PASS: original-method Gamma diagnostics include finite Lilliefors D and p; original model fitting/inference and XLSX tests pass.
+Scope: synthetic tests only; raw study inputs not available. Normality inference is descriptive for dependent fitted residuals and exploratory for non-Gaussian Pearson residuals.

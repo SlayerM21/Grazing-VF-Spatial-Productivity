@@ -2,9 +2,9 @@
   "source_file": "AFRI_CHAPTER_2_Master_Code_Year_Random.Rmd",
   "source_sha256": "80d420e290269268841b0348a8c53a2c1292d96461e54e08763a8161681f11cf",
   "revised_file": "AFRI_CHAPTER_2_Optimized.Rmd",
-  "revised_sha256": "0a801e2fc7ac26f26461b029c9fd848b0f1616655e1974626d56039ffe9471bd",
+  "revised_sha256": "50849d94f82f91f91ed81f43ae6e34014a3cf23aade288c4e7758d6e3764dfb4",
   "source_lines": 33602,
-  "revised_lines": 24927,
+  "revised_lines": 24988,
   "audit_rows": 191,
   "response_specifications": 44,
   "study_execution": "Not run: original HMM, BW, GreenFeed and GIS inputs unavailable",
@@ -158,9 +158,9 @@
     "stale_result_filter": "Reporting copies exclude response keys absent from the current registry; original environment objects are unchanged"
   },
   "prior_additive_statistical_synthetic_assertions": 59,
-  "word_document_sha256": "8e027496d19471c8b58d59caf73f0aaf2120f7738c548fa02362a220c53c639c",
+  "word_document_sha256": "a980b6aa3df1d938b9ef6f2d8d8fa11b1e05933905dd4a5bfa7762a38aaa40b6",
   "word_document_validation": {
-    "bytes": 26255,
+    "bytes": 26705,
     "model_entries": 56,
     "status": "Regenerated from restored model catalog; DOCX ZIP integrity checked; visual pagination not checked",
     "evidence": "validation/Original_Methods_Restoration_Validation.txt"
@@ -235,5 +235,16 @@
       "mean_DDT_day": 938
     },
     "validation": "Synthetic source-object identity, nobs and EMM/SE/Wald equivalence, source Table 1 XLSX equality; study-data numerical reproduction not run without original inputs"
+  },
+  "lilliefors_diagnostics": {
+    "implementation": "nortest::lillie.test",
+    "output": [
+      "Model_Diagnostics",
+      "KS_Lilliefors_All_Models"
+    ],
+    "scope": "Shared Gaussian source diagnostics and original canonical diagnostics plus an all-fitted-model audit; models/estimates unchanged",
+    "minimum_finite_residuals": 5,
+    "interpretation": "Descriptive normality test; not DHARMa uniformity. Pearson normality exploratory for non-Gaussian models; residual dependence affects iid calibration.",
+    "validation": "validation/Lilliefors_Validation.txt"
   }
 }

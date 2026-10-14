@@ -1,3 +1,5 @@
+Current KS/Lilliefors evidence: Lilliefors_Validation.txt and Validate_Lilliefors.R; workbook integration is also checked by both existing synthetic suites.
+
 Current Table 1 evidence: Monthly_Source_Reuse_Validation.txt and Validate_Monthly_Source_Reuse.R. These four responses reuse original monthly Gaussian ML models and source tables. Validate_Original_Methods.R now covers the other canonical methods. Older season-mean Table 1 evidence retains historical scope.
 
 Current evidence: Original_Methods_Restoration_Validation.txt and executable Validate_Original_Methods.R. Original family, robust fitting/fallback, RI/AR(1), response-scale inference and diagnostics are restored; historical Gaussian-only records below retain their original scope.

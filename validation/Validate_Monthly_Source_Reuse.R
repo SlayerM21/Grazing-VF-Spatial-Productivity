@@ -63,3 +63,7 @@ eval(parse(text=chunks[['publication-statistical-exports']]))
 readback<-openxlsx::read.xlsx(professional_excel_file,sheet='Table_1_Grazing_Behaviors',check.names=FALSE)
 stopifnot(isTRUE(all.equal(as.data.frame(source_table),readback,check.attributes=FALSE)))
 cat('PASS: original monthly source Table 1 preserved exactly through final workbook write/read\n')
+
+ks<-openxlsx::read.xlsx(professional_excel_file,sheet='KS_Lilliefors_All_Models')
+stopifnot(nrow(ks)>0,all(is.finite(ks$Lilliefors_D)),all(is.finite(ks$Lilliefors_p)))
+cat('PASS: all-model KS Lilliefors workbook sheet contains computed statistics\n')

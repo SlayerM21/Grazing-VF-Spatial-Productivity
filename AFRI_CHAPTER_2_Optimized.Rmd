@@ -125,7 +125,7 @@ if (!exists("params", inherits = FALSE) || is.null(params)) {
 afri_required_packages <- c(
   "dplyr", "tidyr", "readr", "stringr", "lubridate", "ggplot2",
   "lme4", "lmerTest", "emmeans", "car", "multcomp", "multcompView",
-  "sf", "openxlsx", "knitr", "readxl", "purrr", "digest", "DHARMa", "glmmTMB", "performance", "scales", "viridis"
+  "sf", "openxlsx", "knitr", "readxl", "purrr", "digest", "DHARMa", "glmmTMB", "performance", "nortest", "scales", "viridis"
 )
 afri_missing_packages <- afri_required_packages[
   !vapply(afri_required_packages, requireNamespace, logical(1), quietly = TRUE)
@@ -163,6 +163,26 @@ afri_reference_anova <- function(model) {
     assign(key, car::Anova(model, type = 3), afri_reference_test_registry)
   }
   get(key, afri_reference_test_registry, inherits = FALSE)
+}
+# Lilliefors correction estimates normal mean/SD from the tested residuals.
+# Residual dependence and non-Gaussian families limit normality-test interpretation.
+afri_lilliefors <- function(x, residual_type = "Standardized conditional residuals") {
+  x <- as.numeric(x); x <- x[is.finite(x)]
+  out <- data.frame(Lilliefors_N = length(x), Lilliefors_D = NA_real_,
+    Lilliefors_p = NA_real_, Lilliefors_residual_type = residual_type,
+    Lilliefors_status = "", stringsAsFactors = FALSE)
+  if (length(x) < 5L) out$Lilliefors_status <- "Not run: fewer than 5 finite residuals"
+  else if (length(unique(x)) < 2L || !is.finite(stats::sd(x)) || stats::sd(x) <= 0)
+    out$Lilliefors_status <- "Not run: constant residuals"
+  else {
+    if (!requireNamespace("nortest", quietly = TRUE))
+      stop("Install nortest for Lilliefors-corrected KS normality diagnostics.")
+    test <- nortest::lillie.test(x)
+    out$Lilliefors_D <- unname(test$statistic)
+    out$Lilliefors_p <- test$p.value
+    out$Lilliefors_status <- "Computed; descriptive normality test, not DHARMa uniformity"
+  }
+  out
 }
 afri_shapiro <- function(x) {
   x <- x[is.finite(x)]
@@ -335,6 +355,7 @@ afri_diagnose_lmm <- function(model, model_id, existing_shapiro = NULL) {
       "No automatic model change follows Shapiro significance or singularity."
     )
   )
+  summary <- cbind(summary, afri_lilliefors(standardized))
   result <- list(summary = summary, residuals = residual_data,
                   plots = list(residual_fitted = residual_fitted, qq = qq,
                                scale_location = scale_location),
@@ -23649,6 +23670,9 @@ afri_model_diagnostics <- function(fit) {
   # Diagnostic summary table
   # ----------------------------------------------------------
 
+  lilliefors <- afri_lilliefors(std_resid, if (inherits(m, "glmmTMB"))
+    "Pearson residuals (normality exploratory for non-Gaussian models)" else
+    "Standardized conditional residuals")
   diagnostic_summary <- tibble::tibble(
     Dataset = fit$dataset,
     Response = fit$response,
@@ -23664,6 +23688,11 @@ afri_model_diagnostics <- function(fit) {
     Convergence =
       afri_convergence_message(m),
 
+    Lilliefors_N = lilliefors$Lilliefors_N,
+    Lilliefors_D = lilliefors$Lilliefors_D,
+    Lilliefors_p = lilliefors$Lilliefors_p,
+    Lilliefors_residual_type = lilliefors$Lilliefors_residual_type,
+    Lilliefors_status = lilliefors$Lilliefors_status,
     Shapiro_W = if (is.null(shapiro)) {
       NA_real_
     } else {
@@ -24696,6 +24725,37 @@ exports in Section 9.11. Only nonempty sheets are written, and setting
 ```{r publication-statistical-exports, message=FALSE, warning=TRUE}
 # The final workbook owns the behavior table and its retained numerical results.
 # This is presentation/export reuse; no model or inference is recalculated here.
+# Walk ordinary lists of fit objects, skipping data frames and plot objects.
+# Deduplicate identical model/frame/likelihood signatures and retain every alias.
+lilliefors_models <- list(); lilliefors_aliases <- list()
+collect_lilliefors_models <- function(x, label, depth = 0L) {
+  if (inherits(x, c("lmerMod", "glmmTMB", "lm"))) {
+    key <- digest::digest(list(class = class(x), formula = stats::formula(x),
+      frame = stats::model.frame(x), logLik = as.numeric(stats::logLik(x))), algo = "xxhash64")
+    lilliefors_models[[key]] <<- x
+    lilliefors_aliases[[key]] <<- unique(c(lilliefors_aliases[[key]], label))
+  } else if (depth < 4L && is.list(x) && !is.object(x) && !is.data.frame(x)) {
+    for (i in seq_along(x)) {
+      nm <- if (!is.null(names(x)) && nzchar(names(x)[i])) names(x)[i] else as.character(i)
+      collect_lilliefors_models(x[[i]], paste0(label, "$", nm), depth + 1L)
+    }
+  }
+  invisible(NULL)
+}
+for (object_name in ls(envir = environment())) {
+  if (object_name %in% c("lilliefors_models", "lilliefors_aliases")) next
+  collect_lilliefors_models(get(object_name, envir = environment()), object_name)
+}
+all_model_lilliefors <- dplyr::bind_rows(lapply(names(lilliefors_models), function(key) {
+  model <- lilliefors_models[[key]]
+  residual <- afri_standardized_residuals(model)
+  dplyr::bind_cols(tibble::tibble(Model_aliases = paste(lilliefors_aliases[[key]], collapse = "; "),
+    Formula = paste(deparse(stats::formula(model)), collapse = " "),
+    Interpretation = if (inherits(model, "glmmTMB"))
+      "Pearson-residual normality is exploratory; non-Gaussian models do not require normal Pearson residuals."
+    else "Descriptive residual normality; iid calibration may be affected by fitted/repeated observations."),
+    afri_lilliefors(residual, if (inherits(model, "glmmTMB")) "Pearson residuals" else "Standardized conditional residuals"))
+}))
 publication_reference_anova <- dplyr::filter(publication_retained_omnibus, Table == "TABLE 1")
 publication_model_metadata <- publication_optional("analysis_model_documentation")
 if (!nrow(publication_model_metadata)) publication_model_metadata <- analysis_model_summary
@@ -24709,6 +24769,7 @@ professional_tables_excel <- c(publication_table_objects, list(
   Model_Summary = publication_model_metadata,
   Model_Fit_Status = analysis_fit_status,
   Model_Diagnostics = analysis_model_diagnostics,
+  KS_Lilliefors_All_Models = all_model_lilliefors,
   Residual_Variance_Review = publication_optional("analysis_residual_variance_review"),
   Random_Effect_Variances = publication_optional("analysis_random_effect_variances"),
   Year_Random_QC = analysis_year_random_qc,

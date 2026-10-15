@@ -1,3 +1,5 @@
+Current Table 1 evidence: Table1_Animal_Year_Validation.txt, Validate_Table1_Animal_Year.R and Validate_Original_Methods.R. Monthly-source Table 1 evidence below is historical and superseded.
+
 Current flagged-row type fix: Diagnostic_Row_Types_Validation.txt and Validate_Diagnostic_Row_Types.R.
 
 Current BW EDA export evidence: BW_EDA_Export_Validation.txt and Validate_BW_EDA_Exports.R (six TIFFs, disabled exports and repeatability).

@@ -2,20 +2,19 @@
 
 Lilliefors-corrected Kolmogorov–Smirnov normality diagnostics use `nortest::lillie.test()` on standardized conditional residuals for Gaussian LM/LMM fits and Pearson residuals for glmmTMB fits. Model_Diagnostics includes the statistic, corrected P-value, finite residual count/type and status. KS_Lilliefors_All_Models additionally covers source/exploratory fits, combining aliases of identical fits. Fewer than five finite residuals or constant residuals are reported unavailable. These are descriptive normality tests: fitted/repeated residuals affect iid calibration, and non-Gaussian models do not require normal Pearson residuals. DHARMa uniformity tests remain separate. No model, observation or inference is changed by this diagnostic. Install nortest if needed and rerun in a fresh R session.
 
-The manuscript workflow restores the methods in the supplied original Rmd. There are 44 canonical reporting specifications and 12 exploratory/source catalog entries. Source entries do not replace canonical manuscript fits. Original research datasets are absent here; actual study estimates and a full knit have not been verified.
+The manuscript workflow uses animal-year season averages with Gaussian models for all four Table 1 responses; other outcomes retain the restored original methods. There are 44 canonical reporting specifications and 12 exploratory/source catalog entries. Source entries do not replace canonical manuscript fits. Original research datasets are absent here; actual study estimates and a full knit have not been verified.
 
 Season models use `TRT * SR` and random Year and physical Pasture intercepts where estimable. Period models use `TRT * SR * Period`, including all interactions. The original period engine compares RI and AR(1) candidates; an eligible converged AR(1) is retained when it improves AIC by at least 2, or the RI fit is invalid. Animal-period models use the original within-year animal clustering. Pasture_Year indexes the annual AR(1) sequence, not an additional pasture-year random intercept.
 
 Original family rules are restored: Gaussian/identity for prespecified Gaussian outcomes; Gamma/log for positive area and gas ratios; zero responses use Tweedie/log and negative responses use Gaussian under the original rules. `auto_positive` compares Gaussian with Gamma or Tweedie by AIC. Original numerical fallback rules are retained, and the final fitted family/formula is reported rather than assumed.
 
-Table 1 reuses the four original monthly Gaussian ML source fits, EMMs, SEs and Type III Wald tests. It does not refit season averages or select Gamma for these responses. The final workbook keeps Table_1_Grazing_Behaviors first, routes season animal responses to Table2 and land responses to WholeSeason_Additional, and retains Pasture_RGP and Animal_RGP. Outside-RGP active-area and combined-gas responses remain removed. Existing files from older runs are not deleted. Run a fresh R session and rerun all data and model chunks.
 
 | Entry | Response | Scale / unit | Family rule | RI formula / source formula | Input dataset | Role |
 |---|---|---|---|---|---|---|
-| 1 | `Grazing_h` | monthly / animal | gaussian | `mean_hours ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `Grazing_model_data` | Reused original monthly ML source model |
-| 2 | `Resting_h` | monthly / animal | gaussian | `mean_hours ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `Resting_model_data` | Reused original monthly ML source model |
-| 3 | `Traveling_h` | monthly / animal | gaussian | `mean_hours ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `Traveling_model_data` | Reused original monthly ML source model |
-| 4 | `mean_DDT_day` | monthly / animal | gaussian | `mean_DDT_day ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `Monthly_DDT_filtered` | Reused original monthly ML source model |
+| 1 | `Grazing_h` | season / animal | gaussian | `Grazing_h ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `Table1_Grazing_Behaviors` | Animal-year season-average model |
+| 2 | `Resting_h` | season / animal | gaussian | `Resting_h ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `Table1_Grazing_Behaviors` | Animal-year season-average model |
+| 3 | `Traveling_h` | season / animal | gaussian | `Traveling_h ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `Table1_Grazing_Behaviors` | Animal-year season-average model |
+| 4 | `mean_DDT_day` | season / animal | gaussian | `mean_DDT_day ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `Table1_Grazing_Behaviors` | Animal-year season-average model |
 | 5 | `CH4_Mean_g_d` | season / animal | auto_positive | `CH4_Mean_g_d ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `dressler_animal_means` | Canonical manuscript model |
 | 6 | `CO2_Mean_g_d` | season / animal | auto_positive | `CO2_Mean_g_d ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `dressler_animal_means` | Canonical manuscript model |
 | 7 | `Smooth_Period_ADG` | season / animal | gaussian | `Smooth_Period_ADG ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `animal_spline_metrics` | Canonical manuscript model |

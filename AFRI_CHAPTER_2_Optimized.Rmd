@@ -19917,7 +19917,7 @@ if (isTRUE(export_results) && length(integrated_final_tables)) {
 
 The manuscript analysis below restores the supplied original response-family rules,
 AIC-based positive-family selection, robust fitting/fallbacks and repeated-period
-RI versus AR(1) selection. Table 1 reuses the four original monthly Gaussian ML source models. Period fixed
+RI versus AR(1) selection. Table 1 uses Gaussian models of animal-year season averages for all four responses. Period fixed
 effects retain TRT * SR * Period; Year and physical Pasture are random intercepts
 when estimable. Earlier source models remain exploratory and are not reused as
 canonical manuscript fits. The removed outside-RGP and combined-gas responses remain
@@ -20288,8 +20288,8 @@ canonical_specs <- dplyr::bind_rows(
     ~Table, ~Dataset_key, ~Dataset, ~Response, ~Scale, ~Unit, ~Subject, ~Family_rule,
     "TABLE 1", "table1", "Table1_Grazing_Behaviors", "Grazing_h", "season", "animal", NA_character_, "gaussian",
     "TABLE 1", "table1", "Table1_Grazing_Behaviors", "Resting_h", "season", "animal", NA_character_, "gaussian",
-    "TABLE 1", "table1", "Table1_Grazing_Behaviors", "Traveling_h", "season", "animal", NA_character_, "auto_positive",
-    "TABLE 1", "table1", "Table1_Grazing_Behaviors", "mean_DDT_day", "season", "animal", NA_character_, "auto_positive"
+    "TABLE 1", "table1", "Table1_Grazing_Behaviors", "Traveling_h", "season", "animal", NA_character_, "gaussian",
+    "TABLE 1", "table1", "Table1_Grazing_Behaviors", "mean_DDT_day", "season", "animal", NA_character_, "gaussian"
   ),
   tibble::tibble(
     Table = "TABLE 2",
@@ -22007,41 +22007,6 @@ afri_fit_one_response <- function(spec_row) {
 
   if (is.na(subject) || !nzchar(subject)) subject <- NULL
 
-  # The monthly Gaussian source fits are authoritative for these four responses.
-  # Do not refit their filtered monthly records as season means or select a family.
-  if (dataset_key == "table1") {
-    models <- list(Grazing_h = mod.Monthly_Grazing, Resting_h = mod.Monthly_Resting,
-      Traveling_h = mod.Monthly_Traveling, mean_DDT_day = mod.Monthly_DDT_filtered)
-    sources <- list(Grazing_h = Grazing_model_data, Resting_h = Resting_model_data,
-      Traveling_h = Traveling_model_data, mean_DDT_day = Monthly_DDT_filtered)
-    grids <- list(Grazing_h = emm.Monthly_Grazing, Resting_h = emm.Monthly_Resting,
-      Traveling_h = emm.Monthly_Traveling, mean_DDT_day = emm_DDT)
-    model <- models[[response]]
-    if (!inherits(model, "lmerMod") || lme4::isREML(model))
-      stop(response, ": expected the original monthly ML Gaussian source fit.")
-    frame <- stats::model.frame(model)
-    source_response <- if (response == "mean_DDT_day") response else "mean_hours"
-    if (!source_response %in% names(frame)) stop(response, ": incorrect source response.")
-    data <- sources[[response]]
-    used <- match(rownames(frame), rownames(data))
-    if (anyNA(used)) stop(response, ": source model rows cannot be reconciled.")
-    data <- as.data.frame(data)[used, , drop = FALSE]
-    if (!isTRUE(all.equal(as.numeric(data[[source_response]]),
-                         as.numeric(frame[[source_response]]))))
-      stop(response, ": source response rows differ from the fitted model.")
-    data[[response]] <- as.numeric(frame[[source_response]])
-    return(list(model = model, source_emm = grids[[response]],
-      formula = paste(deparse(stats::formula(model)), collapse = " "),
-      distribution = "Gaussian", link = "identity", engine = "lme4::lmer (ML; reused source)",
-      dataset_key = dataset_key, dataset = dataset_label, response = response,
-      table = spec_row$Table[[1]], scale = "monthly", unit = "animal", subject = "REAL_ID",
-      family_rule = "gaussian", data = data,
-      repeated_structure = "(1 | Year) + (1 | Pasture)",
-      correlation_selection = "Reused original filtered monthly Gaussian ML fit; no season aggregation or refit.",
-      family_resolution_note = "Preserved original Gaussian source model and Type III Wald tests.",
-      distribution_audit = afri_distribution_audit(data, response, dataset_label, "monthly", "animal")))
-  }
-
   raw_data <- canonical_datasets[[dataset_key]]
   if (is.null(raw_data)) stop("Unknown dataset key: ", dataset_key)
   if (!response %in% names(raw_data)) {
@@ -22133,14 +22098,6 @@ canonical_specs <- canonical_specs |>
   dplyr::filter(!Response %in% c("active_ha_outside_rgp", "GHG_g_per_active_ha_all_pasture",
     "GHG_g_per_active_ha_inside_rgp", "GHG_g_per_kg_LWG", "GHG_g_per_active_ha_whole_season",
     "GHG_g_per_kg_LWG_whole_season"))
-
-monthly_source_datasets <- c(Grazing_h = "Grazing_model_data", Resting_h = "Resting_model_data",
-  Traveling_h = "Traveling_model_data", mean_DDT_day = "Monthly_DDT_filtered")
-monthly_rows <- canonical_specs$Dataset_key == "table1"
-canonical_specs$Dataset[monthly_rows] <- unname(monthly_source_datasets[canonical_specs$Response[monthly_rows]])
-canonical_specs$Scale[monthly_rows] <- "monthly"
-canonical_specs$Subject[monthly_rows] <- "REAL_ID"
-canonical_specs$Family_rule[monthly_rows] <- "gaussian"
 
 canonical_fits <- vector("list", nrow(canonical_specs))
 canonical_fit_status <- vector("list", nrow(canonical_specs))
@@ -22312,20 +22269,6 @@ if (nrow(canonical_random_structure_qc) > 0L) {
 afri_omnibus_tests <- function(fit) {
   if (is.null(fit) || is.null(fit$model)) return(tibble::tibble())
   m <- fit$model
-  if (fit$dataset_key == "table1") {
-    tab <- as.data.frame(afri_reference_anova(m))
-    tab$Effect <- rownames(tab)
-    tab <- tab[tab$Effect != "(Intercept)", , drop = FALSE]
-    return(tibble::tibble(Dataset = fit$dataset, Response = fit$response, Table = fit$table,
-      Effect = tab$Effect, NumDF = as.numeric(tab$Df), DenDF = NA_real_,
-      Statistic = as.numeric(tab$Chisq), Test = "Preserved Type III Wald chi-square",
-      Raw_P_value = as.numeric(tab[["Pr(>Chisq)"]]), DF_method = "Asymptotic",
-      Test_source = "Cached original source car::Anova(type = 3)",
-      Management_effect = TRUE, Confirmatory_for_management = canonical_design_has_cell_replication,
-      Manuscript_P_value = if (canonical_design_has_cell_replication)
-        as.numeric(tab[["Pr(>Chisq)"]]) else NA_real_,
-      Inference_note = "Original monthly model tests; management inference remains conditional/exploratory without pasture-cell replication."))
-  }
   expected <- if (fit$scale == "period") {
     c("TRT", "SR", "Period", "TRT:SR", "TRT:Period", "SR:Period", "TRT:SR:Period")
   } else {
@@ -22480,9 +22423,6 @@ afri_emm_type <- function(fit) {
 }
 
 afri_emmeans_call <- function(fit, specs) {
-  if (!is.null(fit$source_emm)) {
-    return(emmeans::emmeans(fit$source_emm, specs = specs, type = "response"))
-  }
   if (inherits(fit$model, "lmerMod")) {
     emmeans::emmeans(
       fit$model,
@@ -22758,7 +22698,7 @@ afri_pairs_table <- function(fit, specs, contrast_type, adjust) {
 afri_get_contrasts <- function(fit) {
   if (is.null(fit) || is.null(fit$model)) return(tibble::tibble())
 
-  if (fit$scale != "period") {
+  if (fit$scale == "season") {
     dplyr::bind_rows(
       afri_pairs_table(
         fit,
@@ -22810,14 +22750,6 @@ canonical_contrasts <- dplyr::bind_rows(
 ```{r canonical-cld, message=FALSE, warning=FALSE}
 afri_get_cld <- function(fit) {
   if (is.null(fit) || is.null(fit$model)) return(tibble::tibble())
-  if (fit$dataset_key == "table1") {
-    labels <- c(Grazing_h = "Grazing (h/day)", Resting_h = "Resting (h/day)",
-      Traveling_h = "Traveling (h/day)", mean_DDT_day = "Daily distance traveled (km/day)")
-    tab <- table1_results[[labels[[fit$response]]]]$emm_posthoc
-    return(tibble::as_tibble(tab) |> dplyr::mutate(Dataset = fit$dataset,
-      Response = fit$response, Table = fit$table, .group = PostHoc_Letter,
-      CLD_Type = "Source_TRT_SR_cells"))
-  }
 
   output <- list()
 
@@ -23970,9 +23902,7 @@ afri_fit_overview <- function(fit) {
     "TRT * SR"
   }
 
-  rationale <- if (fit$dataset_key == "table1") {
-    "Original monthly filtered observations and Gaussian ML source fit reused without refitting; original EMM grid and Type III Wald tests preserved. Monthly records do not add independent pasture treatment replication."
-  } else if (fit$response %in% afri_table2_animal_responses) {
+  rationale <- if (fit$response %in% afri_table2_animal_responses) {
     paste(
       "This is one whole-season animal-level response per animal-year.",
       "Different steers were used in each year, so no SEID/REAL_ID random intercept is used.",
@@ -24024,9 +23954,7 @@ afri_fit_overview <- function(fit) {
       "LM non-constant-variance test and Cook distance; residual-vs-fitted heterogeneity proxy; convergence; singularity/boundary;",
       "random-effect variances and standardized/Pearson residual influence flags."
     ),
-    `Omnibus tests` = if (fit$dataset_key == "table1") {
-      "Preserved source car::Anova Type III Wald chi-square tests (ML Gaussian model)"
-    } else if (inherits(fit$model, "lmerMod")) {
+    `Omnibus tests` = if (inherits(fit$model, "lmerMod")) {
       "Type III F tests with Kenward-Roger (Satterthwaite fallback)"
     } else if (inherits(fit$model, "lm")) {
       "Type III F tests from car::Anova; management P-values masked from confirmatory manuscript inference when factorial cells are unreplicated"
@@ -24120,7 +24048,7 @@ legacy_model_review <- tibble::tribble(
   ~Legacy_model, ~Canonical_replacement, ~Reason,
   "monthly_grazing_sensitivity",
   "Table1_Grazing_Behaviors / Grazing_h season-level model",
-  "Filtered monthly source records and their Gaussian ML models are retained; no season averaging or family selection is applied to Table 1.",
+  "Monthly rows are reduced to one quality-controlled season mean per animal-year. Different steers were used each year, so the primary model is TRT * SR + (1 | Year) + (1 | Pasture), with no animal random intercept, Period, or AR(1).",
   "monthly_resting",
   "Table1_Grazing_Behaviors / Resting_h season-level model",
   "Same season-level reduction as grazing, with Year and physical Pasture random intercepts and no REAL_ID or Pasture_Year random intercept.",
@@ -24197,8 +24125,6 @@ if (!nrow(analysis_cld)) analysis_cld <- tibble::tibble(
 if (!"Period" %in% names(analysis_cld)) analysis_cld$Period <- NA_character_
 analysis_cld$Grouping_scope <- ifelse(grepl("Period", analysis_cld$CLD_Type),
   "Period within TRT × SR", "Management cells; original replication eligibility")
-analysis_cld$Grouping_scope[analysis_cld$CLD_Type == "Source_TRT_SR_cells"] <-
-  "Original source TRT × SR letters; exploratory management comparisons"
 analysis_model_documentation <- original_method_enrich(canonical_model_documentation)
 analysis_model_summary <- analysis_model_documentation
 analysis_model_diagnostics <- original_method_enrich(canonical_model_diagnostics)
@@ -24631,7 +24557,7 @@ publication_make_table <- function(worksheet_name, period = FALSE) {
 }
 
 # First behavior/movement analysis is authoritative, including monthly model n.
-Table1_Professional <- Table_1_Grazing_Behaviors
+Table1_Professional <- publication_make_table("Table_1_Grazing_Behaviors")
 Table2_Professional <- publication_make_table("Table2")
 Whole_Season_Additional_Professional <- publication_make_table("WholeSeason_Additional")
 Other_Period_EMMs_Professional <- publication_make_table("Pasture_RGP", period = TRUE)
@@ -24696,7 +24622,7 @@ Professional_Table_Notes <- tibble::tibble(Note = c(
   "Management P-values displayed where pasture cells are unreplicated are exploratory/conditional. Their limitations are shown in the Inference column; raw and reporting P-values remain distinct in the omnibus audit.",
   "Different letter groups refer only to the retained comparison scope and multiplicity adjustment. The CLD sheet records Grouping_scope and CLD_Type. Shared letters do not establish equivalence.",
   "Random-effect structure follows the retained experimental-unit/repeated-measure model. Year is random where supported, with no fixed-effect P: Year reported.",
-  "Table_1_Grazing_Behaviors reuses the original monthly Gaussian source table and is the first worksheet. Table1_Reference_ANOVA contains the preserved source Type III Wald tests. No standalone Table 1 workbook is written.",
+  "Table_1_Grazing_Behaviors reports Gaussian animal-year season-average models. Table1_Reference_ANOVA contains their canonical omnibus tests. No standalone Table 1 workbook is written.",
   "Table2 combines whole-season animal-performance and individual-animal responses. WholeSeason_Additional includes whole-season CH4 and CO2 per active hectare, area grazed and LWG per active hectare, alongside the distinct daily land rates. Moving a response between sheets does not change its dataset, model, sample size or inference.",
   "Whole-season daily land rates use whole-season gas totals or chute-derived pasture LWG divided by unique active hectares and pasture-specific season days. Missing/zero denominators yield missing responses.",
   "Residual Shapiro–Wilk tests, residual variance checks, Q–Q plots, convergence and singular-fit flags are evaluated together; a single normality P-value does not determine model validity."
@@ -24715,8 +24641,7 @@ publication_table_qc <- tibble::tibble(
   Has_required_columns = vapply(names(publication_table_objects), function(sheet) {
     required <- c("Variable", "n", publication_cells, "P: TRT", "P: SR")
     # Preserve the established behavior-table column names and presentation.
-    required <- c(required, if (sheet == "Table_1_Grazing_Behaviors")
-      "P: TRT * SR" else c("P: TRT × SR", "Observation_unit", "Inference"))
+    required <- c(required, "P: TRT × SR", "Observation_unit", "Inference")
     all(required %in% names(publication_table_objects[[sheet]]))
   }, logical(1)),
   Has_fixed_Year_P = vapply(publication_table_objects,
@@ -24738,7 +24663,7 @@ individual-animal ADG.
 
 ```{r publication-display-tables, results='asis', message=FALSE, warning=FALSE}
 publication_titles <- c(
-  Table_1_Grazing_Behaviors = "Grazing behavior and movement — original monthly Gaussian source models",
+  Table_1_Grazing_Behaviors = "Grazing behavior and movement — animal-year season averages",
   Table2 = "Whole-season animal performance and individual-animal responses",
   WholeSeason_Additional = "Whole-season pasture responses, active area and land productivity",
   Pasture_RGP = "Pasture responses by grazing period",

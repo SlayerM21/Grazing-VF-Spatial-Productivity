@@ -1,0 +1,3 @@
+PASS: actual aggregation builder returns animal-year means of daily values, not monthly means; distance km/day conversion verified.
+PASS: four Table 1 season Gaussian specifications, synthetic fitting/inference, publication and XLSX round trip.
+Historical monthly-source validation superseded. Actual research outputs not verified without original inputs.

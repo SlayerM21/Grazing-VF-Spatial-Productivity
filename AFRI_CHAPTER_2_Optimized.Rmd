@@ -23892,11 +23892,23 @@ canonical_model_diagnostics <- dplyr::bind_rows(
 # COMBINE FLAGGED / INFLUENTIAL OBSERVATIONS
 # ============================================================
 
+# Normalize reporting copies only: source/model frames retain their fitted types.
+# Source monthly models and canonical models use different Year/ID encodings.
+afri_diagnostic_reporting_rows <- function(data) {
+  if (is.null(data)) return(tibble::tibble())
+  data <- tibble::as_tibble(data)
+  identifiers <- intersect(c("Year", "YearFactor", "Pasture", "Pasture_ID",
+    "Pasture_Year", "PastureYear", "Period", "RGP", "RotationPeriod",
+    "Rotation_Period", "Month", "REAL_ID", "SEID", "Animal_ID",
+    "Animal_Year_ID", "Steer_ID", "TRT", "SR"), names(data))
+  data <- dplyr::mutate(data, dplyr::across(dplyr::where(is.factor), as.character))
+  dplyr::mutate(data, dplyr::across(dplyr::all_of(identifiers), as.character))
+}
+
 canonical_influential_observations <- dplyr::bind_rows(
   lapply(
     canonical_diagnostic_objects,
-    `[[`,
-    "influential"
+    function(diagnostic) afri_diagnostic_reporting_rows(diagnostic$influential)
   )
 )
 

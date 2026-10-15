@@ -1,0 +1,5 @@
+PASS: all R chunks parse.
+PASS: actual canonical_influential_observations combine expression handles factor and numeric Year, mixed identifiers, empty and NULL diagnostic tables.
+PASS: three flagged fixture rows and numeric residuals preserved; source factors unchanged.
+PASS: original-method fitting, diagnostics, publication and XLSX round trip regression suite.
+Scope: synthetic tests; full study run not executed without original research inputs.

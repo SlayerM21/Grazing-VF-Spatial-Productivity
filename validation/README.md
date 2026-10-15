@@ -1,3 +1,5 @@
+Current flagged-row type fix: Diagnostic_Row_Types_Validation.txt and Validate_Diagnostic_Row_Types.R.
+
 Current BW EDA export evidence: BW_EDA_Export_Validation.txt and Validate_BW_EDA_Exports.R (six TIFFs, disabled exports and repeatability).
 
 Current KS/Lilliefors evidence: Lilliefors_Validation.txt and Validate_Lilliefors.R; workbook integration is also checked by both existing synthetic suites.

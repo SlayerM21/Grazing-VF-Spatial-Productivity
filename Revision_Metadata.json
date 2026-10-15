@@ -2,9 +2,9 @@
   "source_file": "AFRI_CHAPTER_2_Master_Code_Year_Random.Rmd",
   "source_sha256": "80d420e290269268841b0348a8c53a2c1292d96461e54e08763a8161681f11cf",
   "revised_file": "AFRI_CHAPTER_2_Optimized.Rmd",
-  "revised_sha256": "5749874d5bb4f179b4cce22efb97c6e985596611a014a3625e5a4fc09aba436e",
+  "revised_sha256": "fb0040a7398d4486d5f7c136534e97c024d3e2975cfa891878a5fd41ffdf3226",
   "source_lines": 33602,
-  "revised_lines": 25016,
+  "revised_lines": 25028,
   "audit_rows": 191,
   "response_specifications": 44,
   "study_execution": "Not run: original HMM, BW, GreenFeed and GIS inputs unavailable",
@@ -258,5 +258,11 @@
     "background": "white",
     "validation": "Six synthetic EDA plots exported, TIFF headers/nonempty files verified; export_results=false writes nothing; repeat exports retain six filenames; plot calculations unchanged",
     "study_data_execution": "Not run: research inputs absent"
+  },
+  "diagnostic_reporting_type_fix": {
+    "problem": "bind_rows cannot combine factor Year from monthly source fits with numeric Year from canonical fits",
+    "fix": "Normalize factor and identifier columns to text in diagnostic reporting copies only",
+    "validation": "Actual combine expression tested with mixed Year/ID types, empty/NULL diagnostics and unchanged numeric residual/source data; original-method and XLSX tests pass",
+    "evidence": "validation/Diagnostic_Row_Types_Validation.txt"
   }
 }

@@ -53,6 +53,14 @@ for(rule in c('gamma_log','auto_positive')){
 }
 stopifnot(afri_resolve_family(c(0,2),'gamma_log')$distribution=='Tweedie')
 cat('PASS: original Gaussian/Gamma/Tweedie family resolution and original model fitting\n')
+for(fit in canonical_fits){
+ groups<-vapply(lme4::findbars(formula(fit$model)),function(term) paste(sort(strsplit(paste(deparse(term[[3]]),collapse=''),':',fixed=TRUE)[[1]]),collapse=':'),character(1))
+ stopifnot(identical(sort(groups),if(fit$scale=='period')c('Pasture:Year','Year') else 'Year'))
+ fixed<-attr(terms(lme4::nobars(formula(fit$model))),'term.labels')
+ stopifnot(setequal(fixed,c('TRT','SR','TRT:SR',if(fit$scale=='period')'Period')))
+}
+cat('PASS: all synthetic season fits use Year only; period fits use additive Period and Year plus Year:Pasture, with no animal/AR(1) terms\n')
+
 canonical_emmeans<-bind_rows(lapply(canonical_fits,afri_get_emmeans))
 canonical_omnibus_tests<-bind_rows(lapply(canonical_fits,afri_omnibus_tests))
 canonical_contrasts<-bind_rows(lapply(canonical_fits,afri_get_contrasts))

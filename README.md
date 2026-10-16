@@ -1,5 +1,8 @@
 # AFRI grazing analysis
 
+Current requested structures: season `TRT * SR + (1 | Year)`; period `TRT * SR + Period + (1 | Year) + (1 | Year:Pasture)`; GreenFeed `TRT * SR + RotationPeriod + (1 | Year) + (1 | Year:Pasture)`. No period interactions, animal intercept or AR(1) candidate. Response-family rules and animal-year Table 1 averaging remain in place. This supersedes older model-structure notes below. Restart R and rerun all data/model/export chunks.
+
+
 The current workflow restores the statistical methods from the supplied original `AFRI_CHAPTER_2_Master_Code_Year_Random_10-9-2026.Rmd`: response-specific Gaussian/Gamma/Tweedie rules, original positive-family AIC comparisons, robust numerical fallbacks, RI versus AR(1) repeated-period selection, with Table 1 using Gaussian animal-year season-average models.
 
 Period fixed effects are `TRT * SR * Period` (source aliases RGP/RotationPeriod). Year and physical Pasture are random intercepts where estimable; original repeated-animal clustering and eligible AR(1) covariance candidates are restored. The final family, formula, covariance selection, fit status and diagnostics are exported. Table 1 fits Gaussian models to animal-year season means; earlier monthly source fits remain exploratory. Other outcomes retain the restored original canonical methods.

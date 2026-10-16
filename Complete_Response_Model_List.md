@@ -1,69 +1,68 @@
-# AFRI variables, models, and datasets — restored original methods
+# Current AFRI model structures
 
-Lilliefors-corrected Kolmogorov–Smirnov normality diagnostics use `nortest::lillie.test()` on standardized conditional residuals for Gaussian LM/LMM fits and Pearson residuals for glmmTMB fits. Model_Diagnostics includes the statistic, corrected P-value, finite residual count/type and status. KS_Lilliefors_All_Models additionally covers source/exploratory fits, combining aliases of identical fits. Fewer than five finite residuals or constant residuals are reported unavailable. These are descriptive normality tests: fitted/repeated residuals affect iid calibration, and non-Gaussian models do not require normal Pearson residuals. DHARMa uniformity tests remain separate. No model, observation or inference is changed by this diagnostic. Install nortest if needed and rerun in a fresh R session.
+Season-level responses (including Gaussian Table 1 animal-year season averages) use `response ~ TRT * SR + (1 | Year)`.
 
-The manuscript workflow uses animal-year season averages with Gaussian models for all four Table 1 responses; other outcomes retain the restored original methods. There are 44 canonical reporting specifications and 12 exploratory/source catalog entries. Source entries do not replace canonical manuscript fits. Original research datasets are absent here; actual study estimates and a full knit have not been verified.
+Period-level responses use `response ~ TRT * SR + Period + (1 | Year) + (1 | Year:Pasture)`.
 
-Season models use `TRT * SR` and random Year and physical Pasture intercepts where estimable. Period models use `TRT * SR * Period`, including all interactions. The original period engine compares RI and AR(1) candidates; an eligible converged AR(1) is retained when it improves AIC by at least 2, or the RI fit is invalid. Animal-period models use the original within-year animal clustering. Pasture_Year indexes the annual AR(1) sequence, not an additional pasture-year random intercept.
+Global GreenFeed uses `gas ~ TRT * SR + RotationPeriod + (1 | Year) + (1 | Year:Pasture)`. RGP and Pasture_ID aliases are equivalent in source analyses. Period is additive; no TRT:Period, SR:Period or three-way period interaction is fitted. There is no animal random intercept or AR(1) candidate. The separate endpoint ANCOVA source retains its IBW covariate.
 
-Original family rules are restored: Gaussian/identity for prespecified Gaussian outcomes; Gamma/log for positive area and gas ratios; zero responses use Tweedie/log and negative responses use Gaussian under the original rules. `auto_positive` compares Gaussian with Gamma or Tweedie by AIC. Original numerical fallback rules are retained, and the final fitted family/formula is reported rather than assumed.
+Existing Gaussian/Gamma/Tweedie family rules are retained. Table 1 uses Gaussian animal-year averages. Diagnostics, KS/Lilliefors tests, EMM/SE and workbook routing remain enabled. Actual study-data numerical results require a fresh complete run; old fits and exports must not be reused. Treatment-cell replication remains limited; changing covariance does not create replication.
 
-
-| Entry | Response | Scale / unit | Family rule | RI formula / source formula | Input dataset | Role |
-|---|---|---|---|---|---|---|
-| 1 | `Grazing_h` | season / animal | gaussian | `Grazing_h ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `Table1_Grazing_Behaviors` | Animal-year season-average model |
-| 2 | `Resting_h` | season / animal | gaussian | `Resting_h ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `Table1_Grazing_Behaviors` | Animal-year season-average model |
-| 3 | `Traveling_h` | season / animal | gaussian | `Traveling_h ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `Table1_Grazing_Behaviors` | Animal-year season-average model |
-| 4 | `mean_DDT_day` | season / animal | gaussian | `mean_DDT_day ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `Table1_Grazing_Behaviors` | Animal-year season-average model |
-| 5 | `CH4_Mean_g_d` | season / animal | auto_positive | `CH4_Mean_g_d ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `dressler_animal_means` | Canonical manuscript model |
-| 6 | `CO2_Mean_g_d` | season / animal | auto_positive | `CO2_Mean_g_d ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `dressler_animal_means` | Canonical manuscript model |
-| 7 | `Smooth_Period_ADG` | season / animal | gaussian | `Smooth_Period_ADG ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `animal_spline_metrics` | Canonical manuscript model |
-| 8 | `Shrunk_Initial_BW_kg` | season / animal | gaussian | `Shrunk_Initial_BW_kg ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `shrunk_bw_season_analysis` | Canonical manuscript model |
-| 9 | `Shrunk_Final_BW_kg` | season / animal | gaussian | `Shrunk_Final_BW_kg ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `shrunk_bw_season_analysis` | Canonical manuscript model |
-| 10 | `CH4_g_per_active_ha_whole_season` | season / pasture | auto_positive | `CH4_g_per_active_ha_whole_season ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `whole_season_grazing_productivity` | Canonical manuscript model |
-| 11 | `CO2_g_per_active_ha_whole_season` | season / pasture | auto_positive | `CO2_g_per_active_ha_whole_season ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `whole_season_grazing_productivity` | Canonical manuscript model |
-| 12 | `active_ha_whole_season` | season / pasture | auto_positive | `active_ha_whole_season ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `whole_season_grazing_productivity` | Canonical manuscript model |
-| 13 | `LWG_kg_per_active_ha_whole_season` | season / pasture | auto_positive | `LWG_kg_per_active_ha_whole_season ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `whole_season_grazing_productivity` | Canonical manuscript model |
-| 14 | `active_ha_all_pasture` | period / pasture | gamma_log | `active_ha_all_pasture ~ TRT * SR * Period + (1 \| Year) + (1 \| Pasture)` | `period_level_grazing_productivity` | Canonical manuscript model |
-| 15 | `active_ha_inside_rgp` | period / pasture | gamma_log | `active_ha_inside_rgp ~ TRT * SR * Period + (1 \| Year) + (1 \| Pasture)` | `period_level_grazing_productivity` | Canonical manuscript model |
-| 16 | `total_LWG_kg` | season / pasture | gaussian | `total_LWG_kg ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `whole_season_grazing_productivity` | Canonical manuscript model |
-| 17 | `mean_RGP_ADG_kg_day` | period / pasture | gaussian | `mean_RGP_ADG_kg_day ~ TRT * SR * Period + (1 \| Year) + (1 \| Pasture)` | `period_level_grazing_productivity` | Canonical manuscript model |
-| 18 | `CH4_g_animal_day` | period / pasture | gaussian | `CH4_g_animal_day ~ TRT * SR * Period + (1 \| Year) + (1 \| Pasture)` | `period_level_grazing_productivity` | Canonical manuscript model |
-| 19 | `CO2_g_animal_day` | period / pasture | gaussian | `CO2_g_animal_day ~ TRT * SR * Period + (1 \| Year) + (1 \| Pasture)` | `period_level_grazing_productivity` | Canonical manuscript model |
-| 20 | `LWG_kg_per_active_ha_all_pasture` | period / pasture | gaussian | `LWG_kg_per_active_ha_all_pasture ~ TRT * SR * Period + (1 \| Year) + (1 \| Pasture)` | `period_level_grazing_productivity` | Canonical manuscript model |
-| 21 | `LWG_kg_per_active_ha_inside_rgp` | period / pasture | gaussian | `LWG_kg_per_active_ha_inside_rgp ~ TRT * SR * Period + (1 \| Year) + (1 \| Pasture)` | `period_level_grazing_productivity` | Canonical manuscript model |
-| 22 | `CH4_g_per_active_ha_all_pasture` | period / pasture | gamma_log | `CH4_g_per_active_ha_all_pasture ~ TRT * SR * Period + (1 \| Year) + (1 \| Pasture)` | `period_level_grazing_productivity` | Canonical manuscript model |
-| 23 | `CH4_g_per_active_ha_inside_rgp` | period / pasture | gamma_log | `CH4_g_per_active_ha_inside_rgp ~ TRT * SR * Period + (1 \| Year) + (1 \| Pasture)` | `period_level_grazing_productivity` | Canonical manuscript model |
-| 24 | `CO2_g_per_active_ha_all_pasture` | period / pasture | gamma_log | `CO2_g_per_active_ha_all_pasture ~ TRT * SR * Period + (1 \| Year) + (1 \| Pasture)` | `period_level_grazing_productivity` | Canonical manuscript model |
-| 25 | `CO2_g_per_active_ha_inside_rgp` | period / pasture | gamma_log | `CO2_g_per_active_ha_inside_rgp ~ TRT * SR * Period + (1 \| Year) + (1 \| Pasture)` | `period_level_grazing_productivity` | Canonical manuscript model |
-| 26 | `CH4_g_per_kg_LWG` | period / pasture | gamma_log | `CH4_g_per_kg_LWG ~ TRT * SR * Period + (1 \| Year) + (1 \| Pasture)` | `period_level_grazing_productivity` | Canonical manuscript model |
-| 27 | `CO2_g_per_kg_LWG` | period / pasture | gamma_log | `CO2_g_per_kg_LWG ~ TRT * SR * Period + (1 \| Year) + (1 \| Pasture)` | `period_level_grazing_productivity` | Canonical manuscript model |
-| 28 | `total_LWG_kg` | season / pasture | gaussian | `total_LWG_kg ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `whole_season_grazing_productivity` | Canonical manuscript model |
-| 29 | `mean_Shrunk_Initial_BW_kg` | season / pasture | gaussian | `mean_Shrunk_Initial_BW_kg ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `whole_season_grazing_productivity` | Canonical manuscript model |
-| 30 | `mean_Shrunk_Final_BW_kg` | season / pasture | gaussian | `mean_Shrunk_Final_BW_kg ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `whole_season_grazing_productivity` | Canonical manuscript model |
-| 31 | `mean_Whole_Season_Smooth_ADG_kg_day` | season / pasture | gaussian | `mean_Whole_Season_Smooth_ADG_kg_day ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `whole_season_grazing_productivity` | Canonical manuscript model |
-| 32 | `whole_season_animal_avg_CH4_g_day` | season / pasture | gaussian | `whole_season_animal_avg_CH4_g_day ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `whole_season_grazing_productivity` | Canonical manuscript model |
-| 33 | `whole_season_animal_avg_CO2_g_day` | season / pasture | gaussian | `whole_season_animal_avg_CO2_g_day ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `whole_season_grazing_productivity` | Canonical manuscript model |
-| 34 | `CH4_g_per_active_ha_day_whole_season` | season / pasture | auto_positive | `CH4_g_per_active_ha_day_whole_season ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `whole_season_grazing_productivity` | Canonical manuscript model |
-| 35 | `CO2_g_per_active_ha_day_whole_season` | season / pasture | auto_positive | `CO2_g_per_active_ha_day_whole_season ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `whole_season_grazing_productivity` | Canonical manuscript model |
-| 36 | `ADG_Land_kg_per_active_ha_day_whole_season` | season / pasture | gaussian | `ADG_Land_kg_per_active_ha_day_whole_season ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `whole_season_grazing_productivity` | Canonical manuscript model |
-| 37 | `CH4_g_per_kg_LWG_whole_season` | season / pasture | gamma_log | `CH4_g_per_kg_LWG_whole_season ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `whole_season_grazing_productivity` | Canonical manuscript model |
-| 38 | `CO2_g_per_kg_LWG_whole_season` | season / pasture | gamma_log | `CO2_g_per_kg_LWG_whole_season ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `whole_season_grazing_productivity` | Canonical manuscript model |
-| 39 | `Whole_Season_CH4_g_day` | season / animal | gaussian | `Whole_Season_CH4_g_day ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `shrunk_bw_season_analysis` | Canonical manuscript model |
-| 40 | `Whole_Season_CO2_g_day` | season / animal | gaussian | `Whole_Season_CO2_g_day ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `shrunk_bw_season_analysis` | Canonical manuscript model |
-| 41 | `Whole_Season_Smooth_ADG_kg_day` | season / animal | gaussian | `Whole_Season_Smooth_ADG_kg_day ~ TRT * SR + (1 \| Year) + (1 \| Pasture)` | `shrunk_bw_season_analysis` | Canonical manuscript model |
-| 42 | `RGP_CH4_g_day` | period / animal | gaussian | `RGP_CH4_g_day ~ TRT * SR * Period + (1 \| Year) + (1 \| Pasture) + (1 \| Animal_Year_ID)` | `shrunk_bw_period_analysis` | Canonical manuscript model |
-| 43 | `RGP_CO2_g_day` | period / animal | gaussian | `RGP_CO2_g_day ~ TRT * SR * Period + (1 \| Year) + (1 \| Pasture) + (1 \| Animal_Year_ID)` | `shrunk_bw_period_analysis` | Canonical manuscript model |
-| 44 | `RGP_Smooth_ADG_kg_day` | period / animal | gaussian | `RGP_Smooth_ADG_kg_day ~ TRT * SR * Period + (1 \| Year) + (1 \| Pasture) + (1 \| Animal_Year_ID)` | `shrunk_bw_period_analysis` | Canonical manuscript model |
-| 45 | `CH4_g_d` | period / pasture | Exploratory source; see source chunk | `CH4_g_d ~ TRT * SR * RotationPeriod + (1 \| Year) + (1 \| Pasture)` | `ch4_rotation_model_data` | Exploratory/source only |
-| 46 | `CO2_g_d` | period / pasture | Exploratory source; see source chunk | `CO2_g_d ~ TRT * SR * RotationPeriod + (1 \| Year) + (1 \| Pasture)` | `co2_rotation_model_data` | Exploratory/source only |
-| 47 | `Seasonal_ADG` | season / animal | Exploratory source; see source chunk | `Seasonal_ADG ~ TRT * SR + (1 \| Year) + (1 \| Pasture_ID)` | `bw_season_model_data` | Exploratory/source only |
-| 48 | `FBW` | season / animal | Exploratory source; see source chunk | `FBW ~ IBW + TRT * SR + (1 \| Year) + (1 \| Pasture_ID)` | `bw_season_model_data` | Exploratory/source only |
-| 49 | `CH4_g_d` | period / animal | Exploratory source; see source chunk | `CH4_g_d ~ TRT * SR * Period + (1 \| Year) + (1 \| Pasture)` | `gf_model_data (from gf_period_qualified)` | Exploratory/source only |
-| 50 | `CO2_g_d` | period / animal | Exploratory source; see source chunk | `CO2_g_d ~ TRT * SR * Period + (1 \| Year) + (1 \| Pasture)` | `gf_model_data (from gf_period_qualified)` | Exploratory/source only |
-| 51 | `Percent_pasture_active` | period / pasture | Exploratory source; see source chunk | `Percent_pasture_active ~ TRT * SR * RGP + (1 \| Pasture_ID) + (1 \| Year)` | `rgp_map_scopes [Grid_Map = ALL_PASTURE_GRAZING]` | Exploratory/source only |
-| 52 | `Gain_kg_per_active_ha` | period / pasture | Exploratory source; see source chunk | `Gain_kg_per_active_ha ~ TRT * SR * RGP + (1 \| Pasture_ID) + (1 \| Year)` | `rgp_map_scopes [Grid_Map = ALL_PASTURE_GRAZING]` | Exploratory/source only |
-| 53 | `Percent_pasture_active` | period / pasture | Exploratory source; see source chunk | `Percent_pasture_active ~ TRT * SR * RGP + (1 \| Pasture_ID) + (1 \| Year)` | `rgp_map_scopes [Grid_Map = INSIDE_RGP_GRAZING]` | Exploratory/source only |
-| 54 | `Gain_kg_per_active_ha` | period / pasture | Exploratory source; see source chunk | `Gain_kg_per_active_ha ~ TRT * SR * RGP + (1 \| Pasture_ID) + (1 \| Year)` | `rgp_map_scopes [Grid_Map = INSIDE_RGP_GRAZING]` | Exploratory/source only |
-| 55 | `Percent_pasture_active` | season / pasture | Exploratory source; see source chunk | `Percent_pasture_active ~ TRT * SR + (1 \| Pasture_ID) + (1 \| Year)` | `season_two_grid_outcomes [Grid_Map = WHOLE_SEASON_GRAZING]` | Exploratory/source only |
-| 56 | `Gain_kg_per_active_ha` | season / pasture | Exploratory source; see source chunk | `Gain_kg_per_active_ha ~ TRT * SR + (1 \| Pasture_ID) + (1 \| Year)` | `season_two_grid_outcomes [Grid_Map = WHOLE_SEASON_GRAZING]` | Exploratory/source only |
+| Entry | Response | Scale | Family rule | Formula | Input dataset |
+|---|---|---|---|---|---|
+| 1 | Grazing_h | season | gaussian | `Grazing_h ~ TRT * SR + (1 \| Year)` | Table1_Grazing_Behaviors |
+| 2 | Resting_h | season | gaussian | `Resting_h ~ TRT * SR + (1 \| Year)` | Table1_Grazing_Behaviors |
+| 3 | Traveling_h | season | gaussian | `Traveling_h ~ TRT * SR + (1 \| Year)` | Table1_Grazing_Behaviors |
+| 4 | mean_DDT_day | season | gaussian | `mean_DDT_day ~ TRT * SR + (1 \| Year)` | Table1_Grazing_Behaviors |
+| 5 | CH4_Mean_g_d | season | auto_positive | `CH4_Mean_g_d ~ TRT * SR + (1 \| Year)` | dressler_animal_means |
+| 6 | CO2_Mean_g_d | season | auto_positive | `CO2_Mean_g_d ~ TRT * SR + (1 \| Year)` | dressler_animal_means |
+| 7 | Smooth_Period_ADG | season | gaussian | `Smooth_Period_ADG ~ TRT * SR + (1 \| Year)` | animal_spline_metrics |
+| 8 | Shrunk_Initial_BW_kg | season | gaussian | `Shrunk_Initial_BW_kg ~ TRT * SR + (1 \| Year)` | shrunk_bw_season_analysis |
+| 9 | Shrunk_Final_BW_kg | season | gaussian | `Shrunk_Final_BW_kg ~ TRT * SR + (1 \| Year)` | shrunk_bw_season_analysis |
+| 10 | CH4_g_per_active_ha_whole_season | season | auto_positive | `CH4_g_per_active_ha_whole_season ~ TRT * SR + (1 \| Year)` | whole_season_grazing_productivity |
+| 11 | CO2_g_per_active_ha_whole_season | season | auto_positive | `CO2_g_per_active_ha_whole_season ~ TRT * SR + (1 \| Year)` | whole_season_grazing_productivity |
+| 12 | active_ha_whole_season | season | auto_positive | `active_ha_whole_season ~ TRT * SR + (1 \| Year)` | whole_season_grazing_productivity |
+| 13 | LWG_kg_per_active_ha_whole_season | season | auto_positive | `LWG_kg_per_active_ha_whole_season ~ TRT * SR + (1 \| Year)` | whole_season_grazing_productivity |
+| 14 | active_ha_all_pasture | period | gamma_log | `active_ha_all_pasture ~ TRT * SR + Period + (1 \| Year) + (1 \| Year:Pasture)` | period_level_grazing_productivity |
+| 15 | active_ha_inside_rgp | period | gamma_log | `active_ha_inside_rgp ~ TRT * SR + Period + (1 \| Year) + (1 \| Year:Pasture)` | period_level_grazing_productivity |
+| 16 | total_LWG_kg | season | gaussian | `total_LWG_kg ~ TRT * SR + (1 \| Year)` | whole_season_grazing_productivity |
+| 17 | mean_RGP_ADG_kg_day | period | gaussian | `mean_RGP_ADG_kg_day ~ TRT * SR + Period + (1 \| Year) + (1 \| Year:Pasture)` | period_level_grazing_productivity |
+| 18 | CH4_g_animal_day | period | gaussian | `CH4_g_animal_day ~ TRT * SR + Period + (1 \| Year) + (1 \| Year:Pasture)` | period_level_grazing_productivity |
+| 19 | CO2_g_animal_day | period | gaussian | `CO2_g_animal_day ~ TRT * SR + Period + (1 \| Year) + (1 \| Year:Pasture)` | period_level_grazing_productivity |
+| 20 | LWG_kg_per_active_ha_all_pasture | period | gaussian | `LWG_kg_per_active_ha_all_pasture ~ TRT * SR + Period + (1 \| Year) + (1 \| Year:Pasture)` | period_level_grazing_productivity |
+| 21 | LWG_kg_per_active_ha_inside_rgp | period | gaussian | `LWG_kg_per_active_ha_inside_rgp ~ TRT * SR + Period + (1 \| Year) + (1 \| Year:Pasture)` | period_level_grazing_productivity |
+| 22 | CH4_g_per_active_ha_all_pasture | period | gamma_log | `CH4_g_per_active_ha_all_pasture ~ TRT * SR + Period + (1 \| Year) + (1 \| Year:Pasture)` | period_level_grazing_productivity |
+| 23 | CH4_g_per_active_ha_inside_rgp | period | gamma_log | `CH4_g_per_active_ha_inside_rgp ~ TRT * SR + Period + (1 \| Year) + (1 \| Year:Pasture)` | period_level_grazing_productivity |
+| 24 | CO2_g_per_active_ha_all_pasture | period | gamma_log | `CO2_g_per_active_ha_all_pasture ~ TRT * SR + Period + (1 \| Year) + (1 \| Year:Pasture)` | period_level_grazing_productivity |
+| 25 | CO2_g_per_active_ha_inside_rgp | period | gamma_log | `CO2_g_per_active_ha_inside_rgp ~ TRT * SR + Period + (1 \| Year) + (1 \| Year:Pasture)` | period_level_grazing_productivity |
+| 26 | CH4_g_per_kg_LWG | period | gamma_log | `CH4_g_per_kg_LWG ~ TRT * SR + Period + (1 \| Year) + (1 \| Year:Pasture)` | period_level_grazing_productivity |
+| 27 | CO2_g_per_kg_LWG | period | gamma_log | `CO2_g_per_kg_LWG ~ TRT * SR + Period + (1 \| Year) + (1 \| Year:Pasture)` | period_level_grazing_productivity |
+| 28 | total_LWG_kg | season | gaussian | `total_LWG_kg ~ TRT * SR + (1 \| Year)` | whole_season_grazing_productivity |
+| 29 | mean_Shrunk_Initial_BW_kg | season | gaussian | `mean_Shrunk_Initial_BW_kg ~ TRT * SR + (1 \| Year)` | whole_season_grazing_productivity |
+| 30 | mean_Shrunk_Final_BW_kg | season | gaussian | `mean_Shrunk_Final_BW_kg ~ TRT * SR + (1 \| Year)` | whole_season_grazing_productivity |
+| 31 | mean_Whole_Season_Smooth_ADG_kg_day | season | gaussian | `mean_Whole_Season_Smooth_ADG_kg_day ~ TRT * SR + (1 \| Year)` | whole_season_grazing_productivity |
+| 32 | whole_season_animal_avg_CH4_g_day | season | gaussian | `whole_season_animal_avg_CH4_g_day ~ TRT * SR + (1 \| Year)` | whole_season_grazing_productivity |
+| 33 | whole_season_animal_avg_CO2_g_day | season | gaussian | `whole_season_animal_avg_CO2_g_day ~ TRT * SR + (1 \| Year)` | whole_season_grazing_productivity |
+| 34 | CH4_g_per_active_ha_day_whole_season | season | auto_positive | `CH4_g_per_active_ha_day_whole_season ~ TRT * SR + (1 \| Year)` | whole_season_grazing_productivity |
+| 35 | CO2_g_per_active_ha_day_whole_season | season | auto_positive | `CO2_g_per_active_ha_day_whole_season ~ TRT * SR + (1 \| Year)` | whole_season_grazing_productivity |
+| 36 | ADG_Land_kg_per_active_ha_day_whole_season | season | gaussian | `ADG_Land_kg_per_active_ha_day_whole_season ~ TRT * SR + (1 \| Year)` | whole_season_grazing_productivity |
+| 37 | CH4_g_per_kg_LWG_whole_season | season | gamma_log | `CH4_g_per_kg_LWG_whole_season ~ TRT * SR + (1 \| Year)` | whole_season_grazing_productivity |
+| 38 | CO2_g_per_kg_LWG_whole_season | season | gamma_log | `CO2_g_per_kg_LWG_whole_season ~ TRT * SR + (1 \| Year)` | whole_season_grazing_productivity |
+| 39 | Whole_Season_CH4_g_day | season | gaussian | `Whole_Season_CH4_g_day ~ TRT * SR + (1 \| Year)` | shrunk_bw_season_analysis |
+| 40 | Whole_Season_CO2_g_day | season | gaussian | `Whole_Season_CO2_g_day ~ TRT * SR + (1 \| Year)` | shrunk_bw_season_analysis |
+| 41 | Whole_Season_Smooth_ADG_kg_day | season | gaussian | `Whole_Season_Smooth_ADG_kg_day ~ TRT * SR + (1 \| Year)` | shrunk_bw_season_analysis |
+| 42 | RGP_CH4_g_day | period | gaussian | `RGP_CH4_g_day ~ TRT * SR + Period + (1 \| Year) + (1 \| Year:Pasture)` | shrunk_bw_period_analysis |
+| 43 | RGP_CO2_g_day | period | gaussian | `RGP_CO2_g_day ~ TRT * SR + Period + (1 \| Year) + (1 \| Year:Pasture)` | shrunk_bw_period_analysis |
+| 44 | RGP_Smooth_ADG_kg_day | period | gaussian | `RGP_Smooth_ADG_kg_day ~ TRT * SR + Period + (1 \| Year) + (1 \| Year:Pasture)` | shrunk_bw_period_analysis |
+| 45 | CH4_g_d | period | Exploratory source; see source chunk | `CH4_g_d ~ TRT * SR + RotationPeriod + (1 \| Year) + (1 \| Year:Pasture)` | ch4_rotation_model_data |
+| 46 | CO2_g_d | period | Exploratory source; see source chunk | `CO2_g_d ~ TRT * SR + RotationPeriod + (1 \| Year) + (1 \| Year:Pasture)` | co2_rotation_model_data |
+| 47 | Seasonal_ADG | season | Exploratory source; see source chunk | `Seasonal_ADG ~ TRT * SR + (1 \| Year)` | bw_season_model_data |
+| 48 | FBW | season | Exploratory source; see source chunk | `FBW ~ IBW + TRT * SR + (1 \| Year)` | bw_season_model_data |
+| 49 | CH4_g_d | period | Exploratory source; see source chunk | `CH4_g_d ~ TRT * SR + Period + (1 \| Year) + (1 \| Year:Pasture)` | gf_model_data (from gf_period_qualified) |
+| 50 | CO2_g_d | period | Exploratory source; see source chunk | `CO2_g_d ~ TRT * SR + Period + (1 \| Year) + (1 \| Year:Pasture)` | gf_model_data (from gf_period_qualified) |
+| 51 | Percent_pasture_active | period | Exploratory source; see source chunk | `Percent_pasture_active ~ TRT * SR + RGP + (1 \| Year) + (1 \| Year:Pasture)` | rgp_map_scopes [Grid_Map = ALL_PASTURE_GRAZING] |
+| 52 | Gain_kg_per_active_ha | period | Exploratory source; see source chunk | `Gain_kg_per_active_ha ~ TRT * SR + RGP + (1 \| Year) + (1 \| Year:Pasture)` | rgp_map_scopes [Grid_Map = ALL_PASTURE_GRAZING] |
+| 53 | Percent_pasture_active | period | Exploratory source; see source chunk | `Percent_pasture_active ~ TRT * SR + RGP + (1 \| Year) + (1 \| Year:Pasture)` | rgp_map_scopes [Grid_Map = INSIDE_RGP_GRAZING] |
+| 54 | Gain_kg_per_active_ha | period | Exploratory source; see source chunk | `Gain_kg_per_active_ha ~ TRT * SR + RGP + (1 \| Year) + (1 \| Year:Pasture)` | rgp_map_scopes [Grid_Map = INSIDE_RGP_GRAZING] |
+| 55 | Percent_pasture_active | season | Exploratory source; see source chunk | `Percent_pasture_active ~ TRT * SR + (1 \| Year)` | season_two_grid_outcomes [Grid_Map = WHOLE_SEASON_GRAZING] |
+| 56 | Gain_kg_per_active_ha | season | Exploratory source; see source chunk | `Gain_kg_per_active_ha ~ TRT * SR + (1 \| Year)` | season_two_grid_outcomes [Grid_Map = WHOLE_SEASON_GRAZING] |

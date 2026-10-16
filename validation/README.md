@@ -1,3 +1,5 @@
+Current requested formula evidence: Requested_Structures_Validation.txt and structure assertions in Validate_Original_Methods.R. Season models now use Year only; period models use additive Period with Year and Year:Pasture. Earlier covariance/interaction evidence is historical.
+
 Current Table 1 evidence: Table1_Animal_Year_Validation.txt, Validate_Table1_Animal_Year.R and Validate_Original_Methods.R. Monthly-source Table 1 evidence below is historical and superseded.
 
 Current flagged-row type fix: Diagnostic_Row_Types_Validation.txt and Validate_Diagnostic_Row_Types.R.

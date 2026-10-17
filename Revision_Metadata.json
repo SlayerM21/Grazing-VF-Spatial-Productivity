@@ -2,7 +2,7 @@
   "source_file": "AFRI_CHAPTER_2_Master_Code_Year_Random.Rmd",
   "source_sha256": "80d420e290269268841b0348a8c53a2c1292d96461e54e08763a8161681f11cf",
   "revised_file": "AFRI_CHAPTER_2_Optimized.Rmd",
-  "revised_sha256": "1af82119f5ae20501e6302a5ddecd37643d2a235a3a245ac689ccfbb5345f3d6",
+  "revised_sha256": "a014c956cb18d546f64fd0a73c5ad637da8c18651f26e5ed9589e1def898ff87",
   "source_lines": 33602,
   "revised_lines": 24818,
   "audit_rows": 191,
@@ -304,5 +304,10 @@
     "transform": "None; original animal-year response values",
     "fallback": "No Gaussian/Tweedie fallback; explicit error for nonpositive responses or failed Gamma fit",
     "validation": "Synthetic fits, original-value identity, zero/negative rejection, forced convergence failure and workbook checks passed; exact study fits not run without inputs"
+  },
+  "windows_ascii_audit_message": {
+    "change": "Use ASCII x instead of multiplication glyph in HMM dimensions message",
+    "validation": "All 217 R chunks parse; message executed against a 3-row/2-column fixture",
+    "scope": "Diagnostic text only; no calculations changed"
   }
 }

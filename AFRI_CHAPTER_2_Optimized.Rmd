@@ -522,7 +522,7 @@ The audit below confirms variable names and types before any recoding. Keeping
 this check near the import step makes changes in upstream files easy to detect.
 
 ```{r hmm-audit-hmm-results}
-cat("Dimensions:", nrow(HMM_Results), "rows ×", ncol(HMM_Results), "columns\n\n")
+cat("Dimensions:", nrow(HMM_Results), "rows x", ncol(HMM_Results), "columns\n\n")
 cat("Column names:\n")
 print(names(HMM_Results))
 

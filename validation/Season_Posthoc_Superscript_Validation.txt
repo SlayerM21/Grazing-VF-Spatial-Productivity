@@ -1,0 +1,68 @@
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+PASS: all 217 R chunks parse
+FIT: Grazing_h Gaussian identity Grazing_h ~ TRT * SR + (1 | Year) 
+FIT: Resting_h Gaussian identity Resting_h ~ TRT * SR + (1 | Year) 
+boundary (singular) fit: see help('isSingular')
+FIT: Traveling_h Gaussian identity Traveling_h ~ TRT * SR + (1 | Year) 
+FIT: mean_DDT_day Gaussian identity mean_DDT_day ~ TRT * SR + (1 | Year) 
+FIT: CH4_Mean_g_d Gamma log CH4_Mean_g_d ~ TRT * SR + (1 | Year) 
+FIT: active_ha_whole_season Gamma log active_ha_whole_season ~ TRT * SR + (1 | Year) 
+FIT: active_ha_all_pasture Gamma log active_ha_all_pasture ~ TRT * SR + Period + (1 | Year) + (1 | Year:Pasture) 
+FIT: LWG_kg_per_active_ha_all_pasture Gaussian identity LWG_kg_per_active_ha_all_pasture ~ TRT * SR + Period + (1 | Year) + (1 | Year:Pasture) 
+FIT: CH4_g_per_active_ha_all_pasture Gamma log CH4_g_per_active_ha_all_pasture ~ TRT * SR + Period + (1 | Year) + (1 | Year:Pasture) 
+FIT: CH4_g_per_active_ha_inside_rgp Gamma log CH4_g_per_active_ha_inside_rgp ~ TRT * SR + Period + (1 | Year) + (1 | Year:Pasture) 
+FIT: RGP_CH4_g_day Gaussian identity RGP_CH4_g_day ~ TRT * SR + Period + (1 | Year) + (1 | Year:Pasture) 
+PASS: original Gaussian/Gamma/Tweedie family resolution and original model fitting
+Warning messages:
+1: the ‘findbars’ function has moved to the reformulas package. Please update your imports, or ask an upstream package maintainer to do so. 
+2: the ‘nobars’ function has moved to the reformulas package. Please update your imports, or ask an upstream package maintainer to do so. 
+PASS: all synthetic season fits use Year only; period fits use additive Period and Year plus Year:Pasture, with no animal/AR(1) terms
+Registered S3 method overwritten by 'car':
+  method           from
+  na.action.merMod lme4
+Note: adjust = "tukey" was changed to "sidak"
+because "tukey" is only appropriate for one set of pairwise comparisons
+Note: adjust = "tukey" was changed to "sidak"
+because "tukey" is only appropriate for one set of pairwise comparisons
+Note: adjust = "tukey" was changed to "sidak"
+because "tukey" is only appropriate for one set of pairwise comparisons
+Note: adjust = "tukey" was changed to "sidak"
+because "tukey" is only appropriate for one set of pairwise comparisons
+Note: adjust = "tukey" was changed to "sidak"
+because "tukey" is only appropriate for one set of pairwise comparisons
+Note: adjust = "tukey" was changed to "sidak"
+because "tukey" is only appropriate for one set of pairwise comparisons
+Note: adjust = "tukey" was changed to "sidak"
+because "tukey" is only appropriate for one set of pairwise comparisons
+Note: adjust = "tukey" was changed to "sidak"
+because "tukey" is only appropriate for one set of pairwise comparisons
+Note: adjust = "tukey" was changed to "sidak"
+because "tukey" is only appropriate for one set of pairwise comparisons
+Note: adjust = "tukey" was changed to "sidak"
+because "tukey" is only appropriate for one set of pairwise comparisons
+Note: adjust = "tukey" was changed to "sidak"
+because "tukey" is only appropriate for one set of pairwise comparisons
+PASS: original response-scale EMM/real SE, Type III tests, contrasts/CLDs and workbook adapter
+PASS: current publication tables use original-method outputs
+PASS: original Gamma model diagnostics executed
+Statistical tables and audits: /tmp/Rtmp35FEiU/restored-method-workbook/01_Tables/AFRI_Statistical_Results.xlsx
+# A tibble: 1 × 3
+  File                                                   Export_requested Status
+  <chr>                                                  <lgl>            <chr> 
+1 /tmp/Rtmp35FEiU/restored-method-workbook/01_Tables/AF… TRUE             Creat…
+PASS: statistical workbook written and reopened with restored-model estimates/SEs
+null device 
+          1 
+PASS: Table2 and WholeSeason_Additional have Tukey superscripts after EMM and before ± SE in reopened Excel; raw numeric EMM/SE preserved
+
+Scope: synthetic Gaussian/Gamma season and period fits; no research input datasets available. All season comparisons are Tukey-adjusted across six management cells within a response and labelled exploratory when unreplicated.

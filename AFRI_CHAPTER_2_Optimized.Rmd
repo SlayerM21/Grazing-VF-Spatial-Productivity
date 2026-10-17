@@ -20251,7 +20251,7 @@ if (!canonical_design_has_cell_replication) {
     "The 2 x 3 factorial treatment structure is not independently replicated ",
     "at the physical-pasture level. Raw model-based TRT/SR P-values will be ",
     "exported as exploratory, but confirmatory manuscript P-values and ",
-    "management CLDs will be suppressed."
+    "season-table management CLDs are exploratory; period management CLDs remain suppressed."
   )
 }
 
@@ -22647,6 +22647,24 @@ canonical_contrasts <- dplyr::bind_rows(
 afri_get_cld <- function(fit) {
   if (is.null(fit) || is.null(fit$model)) return(tibble::tibble())
 
+  # Season-table letters compare all six TRT x SR EMM cells within a response.
+  # The requested display is exploratory when pasture cells are unreplicated.
+  if (fit$scale != "period") {
+    grid <- afri_emmeans_call(fit, ~ TRT * SR)
+    tab <- tryCatch(as.data.frame(multcomp::cld(grid, adjust = "tukey",
+      Letters = letters, alpha = CANONICAL_MANAGEMENT_ALPHA)), error = function(e) {
+        warning(fit$response, ": season Tukey letters unavailable: ", conditionMessage(e))
+        NULL
+      })
+    if (is.null(tab)) return(tibble::tibble())
+    return(tibble::as_tibble(tab) |> dplyr::mutate(
+      Dataset = fit$dataset, Response = fit$response, Table = fit$table,
+      CLD_Type = "Season_TRT_SR_cells",
+      Inference_note = if (canonical_design_has_cell_replication)
+        "Tukey-adjusted comparisons across all six TRT x SR cells within this response."
+      else "Exploratory Tukey-adjusted comparisons across all six TRT x SR cells; pasture cells are unreplicated."))
+  }
+
   output <- list()
 
   # Period comparisons are within the observed repeated-measures subject/cell.
@@ -23801,7 +23819,7 @@ afri_fit_overview <- function(fit) {
     `Omnibus tests` = "Canonical Type III tests; original family rules retained.",
     `Estimated marginal means` = if (fit$scale == "period") "TRT × SR × Period prediction grid from an additive-period model" else "TRT × SR grid",
     `Relevant pairwise comparisons` = "Retained within-cell contrasts; exploratory management inference without replicated pasture cells.",
-    `Compact-letter displays` = "Original comparison eligibility and multiplicity rules retained.",
+    `Compact-letter displays` = "Season: Tukey comparisons across all six TRT x SR cells, exploratory if unreplicated. Period: retained temporal comparisons.",
     `Code used for final results table` = "Canonical results with current publication adapter")
 }
 
@@ -23948,7 +23966,7 @@ if (!nrow(analysis_cld)) analysis_cld <- tibble::tibble(
   TRT=character(), SR=character(), Period=character(), .group=character(), CLD_Type=character())
 if (!"Period" %in% names(analysis_cld)) analysis_cld$Period <- NA_character_
 analysis_cld$Grouping_scope <- ifelse(grepl("Period", analysis_cld$CLD_Type),
-  "Period within TRT × SR", "Management cells; original replication eligibility")
+  "Period within TRT × SR", "TRT × SR cells within response; Tukey; exploratory when pasture cells unreplicated")
 analysis_model_documentation <- original_method_enrich(canonical_model_documentation)
 analysis_model_summary <- analysis_model_documentation
 analysis_model_diagnostics <- original_method_enrich(canonical_model_diagnostics)
@@ -24197,6 +24215,16 @@ publication_ensure <- function(data, columns, fill = "—") {
   for (nm in setdiff(columns, names(data))) data[[nm]] <- rep(fill, nrow(data))
   data
 }
+publication_superscript <- function(x) {
+  glyphs <- setNames(strsplit("ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖ𐞥ʳˢᵗᵘᵛʷˣʸᶻ", "")[[1]], letters)
+  vapply(x, function(label) {
+    if (is.na(label) || !nzchar(trimws(label))) return("")
+    characters <- strsplit(gsub("[[:space:]]+", "", label), "")[[1]]
+    mapped <- unname(glyphs[characters])
+    if (anyNA(mapped)) stop("Unsupported post-hoc letter in superscript display: ", label)
+    paste(mapped, collapse = "")
+  }, character(1), USE.NAMES = FALSE)
+}
 publication_number <- function(x, digits = 2L) {
   digits <- rep_len(as.integer(digits), length(x))
   result <- rep("—", length(x))
@@ -24310,10 +24338,9 @@ professional_emm_long <- professional_emm_long |>
   ) |>
   dplyr::mutate(
     `EMM ± SE` = ifelse(is.finite(EMM) & is.finite(SE),
-      paste0(publication_number(EMM, Display_Digits), " ± ",
-             publication_number(SE, Display_Digits),
-             ifelse(!is.na(PostHoc_Letter) & nzchar(PostHoc_Letter),
-                    paste0(" ", PostHoc_Letter), "")), "—")
+      paste0(publication_number(EMM, Display_Digits),
+             publication_superscript(PostHoc_Letter), " ± ",
+             publication_number(SE, Display_Digits)), "—")
   )
 
 professional_omnibus_long <- publication_retained_omnibus |>
@@ -24444,7 +24471,7 @@ Professional_Table_Notes <- tibble::tibble(Note = c(
   "n is the number of fitted model observations. Observation_unit identifies animal versus pasture records; Scale in the raw results distinguishes season versus grazing-period observations. Physical pasture is the independent experimental unit for TRT/SR allocation, and Model_Summary retains animal, pasture and year counts. Repeated years/animals are not independent treatment replicates.",
   "P: TRT, P: SR and P: TRT × SR are retained Type III model tests. RGP models include the period main effect and all period interactions; period differences can vary across management combinations.",
   "Management P-values displayed where pasture cells are unreplicated are exploratory/conditional. Their limitations are shown in the Inference column; raw and reporting P-values remain distinct in the omnibus audit.",
-  "Different letter groups refer only to the retained comparison scope and multiplicity adjustment. The CLD sheet records Grouping_scope and CLD_Type. Shared letters do not establish equivalence.",
+  "Superscript letters follow the EMM before ± SE. Season letters compare all six TRT × SR cells within each response using Tukey adjustment; with unreplicated pasture cells these are exploratory. Different letter groups refer only to the retained comparison scope and multiplicity adjustment. The CLD sheet records Grouping_scope and CLD_Type. Shared letters do not establish equivalence.",
   "Random-effect structure follows the retained experimental-unit/repeated-measure model. Year is random where supported, with no fixed-effect P: Year reported.",
   "Table_1_Grazing_Behaviors reports Gaussian animal-year season-average models. Table1_Reference_ANOVA contains their canonical omnibus tests. No standalone Table 1 workbook is written.",
   "Table2 combines whole-season animal-performance and individual-animal responses. WholeSeason_Additional includes whole-season CH4 and CO2 per active hectare, area grazed and LWG per active hectare, alongside the distinct daily land rates. Moving a response between sheets does not change its dataset, model, sample size or inference.",

@@ -1,5 +1,7 @@
 # Current AFRI model structures
 
+Season-table post-hoc letters compare all six TRT × SR EMM cells within each response using Tukey adjustment. They are displayed as Unicode superscripts immediately after the EMM and before ± SE (for example, 12.75ᵃ ± 0.61). Table2 and WholeSeason_Additional now include these letters. When pasture cells are unreplicated the comparisons are explicitly exploratory. Raw EMM/SE and plain letters remain available in EMMs_Raw and CLD; missing/nonestimable letters are not invented. Period letters retain their existing temporal comparison scope.
+
 Season-level responses (including Gaussian Table 1 animal-year season averages) use `response ~ TRT * SR + (1 | Year)`.
 
 Period-level responses use `response ~ TRT * SR + Period + (1 | Year) + (1 | Year:Pasture)`.

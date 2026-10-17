@@ -2,9 +2,9 @@
   "source_file": "AFRI_CHAPTER_2_Master_Code_Year_Random.Rmd",
   "source_sha256": "80d420e290269268841b0348a8c53a2c1292d96461e54e08763a8161681f11cf",
   "revised_file": "AFRI_CHAPTER_2_Optimized.Rmd",
-  "revised_sha256": "74fab6b1e94f4b8813a35fdf5e27c45d7a5dd42a9d0cb131d9b68620946d32f1",
+  "revised_sha256": "6326693f8b7c0f851a83dc0ae8db55c9e73f9106489e5ec6ff0f652d3c4d271d",
   "source_lines": 33602,
-  "revised_lines": 24777,
+  "revised_lines": 24804,
   "audit_rows": 191,
   "response_specifications": 44,
   "study_execution": "Not run: original HMM, BW, GreenFeed and GIS inputs unavailable",
@@ -158,9 +158,9 @@
     "stale_result_filter": "Reporting copies exclude response keys absent from the current registry; original environment objects are unchanged"
   },
   "prior_additive_statistical_synthetic_assertions": 59,
-  "word_document_sha256": "7c1c261db3927a8c14bfd451223d2db53ed4f36fe30ef642230de9e63473fc93",
+  "word_document_sha256": "45bf317476bfa350b738a090630fcf1d15eec91d8a21dc2ed05f63314a6ada34",
   "word_document_validation": {
-    "bytes": 25777,
+    "bytes": 26145,
     "model_entries": 56,
     "status": "Regenerated from restored model catalog; DOCX ZIP integrity checked; visual pagination not checked",
     "evidence": "validation/Original_Methods_Restoration_Validation.txt"
@@ -284,5 +284,12 @@
     "animal_intercept": "Disabled",
     "families": "Existing rules retained; Table 1 Gaussian",
     "study_execution": "Not run without original research inputs"
+  },
+  "season_posthoc_superscripts": {
+    "comparison": "All six TRT x SR EMM cells within each season response; Tukey adjusted",
+    "display": "EMM + Unicode superscript letters + \u00b1 + SE",
+    "scope": "Exploratory when management cells unreplicated; period temporal CLDs unchanged",
+    "validation": "Table2 and WholeSeason_Additional Excel readback confirms superscript placement; multiple/missing-letter formatting checked; numeric EMM/SE preserved",
+    "evidence": "validation/Season_Posthoc_Superscript_Validation.txt"
   }
 }

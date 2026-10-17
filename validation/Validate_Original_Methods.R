@@ -38,7 +38,7 @@ for(key in unique(canonical_specs$Dataset_key)){
 # Preserve within-year repeated animal identifiers for the animal-period fixture.
 canonical_datasets$shrunk_period$SEID<-paste(canonical_datasets$shrunk_period$Year,canonical_datasets$shrunk_period$Pasture)
 canonical_datasets$shrunk_period$REAL_ID<-canonical_datasets$shrunk_period$SEID
-selected<-filter(canonical_specs,Response %in% c('Grazing_h','Resting_h','Traveling_h','mean_DDT_day','active_ha_all_pasture','CH4_g_per_active_ha_all_pasture','CH4_g_per_active_ha_inside_rgp','LWG_kg_per_active_ha_all_pasture','RGP_CH4_g_day'))
+selected<-filter(canonical_specs,Response %in% c('Grazing_h','Resting_h','Traveling_h','mean_DDT_day','CH4_Mean_g_d','active_ha_whole_season','active_ha_all_pasture','CH4_g_per_active_ha_all_pasture','CH4_g_per_active_ha_inside_rgp','LWG_kg_per_active_ha_all_pasture','RGP_CH4_g_day'))
 canonical_specs<-selected
 canonical_fits<-list()
 for(i in seq_len(nrow(selected))){
@@ -90,3 +90,16 @@ stopifnot('KS_Lilliefors_All_Models' %in% names(w))
 cat('PASS: statistical workbook written and reopened with restored-model estimates/SEs\n')
 
 grDevices::dev.off()
+
+stopifnot(identical(publication_superscript(c('a','ab','',NA_character_)),c('ᵃ','ᵃᵇ','','')))
+stopifnot(paste0(publication_number(12.75,2),publication_superscript('a'),' ± ',publication_number(0.61,2))=='12.75ᵃ ± 0.61')
+for(sheet in c('Table2','WholeSeason_Additional')) {
+ tab<-openxlsx::read.xlsx(w,sheet=sheet,check.names=FALSE)
+ stopifnot(nrow(tab)>0)
+ indices<-match(gsub(' ','.',publication_cells,fixed=TRUE),gsub(' ','.',names(tab),fixed=TRUE))
+ stopifnot(!anyNA(indices))
+ cells<-unlist(tab[,indices,drop=FALSE],use.names=FALSE)
+ stopifnot(all(grepl('[ᵃᵇᶜᵈᵉᶠ].* ± ',cells)))
+}
+stopifnot(is.numeric(analysis_emmeans$EMM),is.numeric(analysis_emmeans$SE))
+cat('PASS: Table2 and WholeSeason_Additional have Tukey superscripts after EMM and before ± SE in reopened Excel; raw numeric EMM/SE preserved\n')

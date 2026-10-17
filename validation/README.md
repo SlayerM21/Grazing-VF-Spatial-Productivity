@@ -1,3 +1,5 @@
+Current full period interaction plus Year:Pasture evidence: Full_Period_Nested_Validation.txt and Validate_Original_Methods.R. Season Year-only structure retained.
+
 Current season post-hoc/superscript evidence: Season_Posthoc_Superscript_Validation.txt and Table2/WholeSeason workbook checks in Validate_Original_Methods.R.
 
 Current requested formula evidence: Requested_Structures_Validation.txt and structure assertions in Validate_Original_Methods.R. Season models now use Year only; period models use additive Period with Year and Year:Pasture. Earlier covariance/interaction evidence is historical.

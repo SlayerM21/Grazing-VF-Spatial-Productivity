@@ -1,5 +1,8 @@
 # AFRI grazing analysis
 
+Current update: season models remain `TRT * SR + (1 | Year)`; period models now use `TRT * SR * Period + (1 | Year) + (1 | Year:Pasture)`, and GreenFeed uses `TRT * SR * RotationPeriod + (1 | Year) + (1 | Year:Pasture)`. All period interactions and their omnibus P-value columns are included. Family rules, season averaging, superscripts and disabled animal/AR(1) structures remain unchanged. This supersedes older additive-period notes below.
+
+
 Current requested structures: season `TRT * SR + (1 | Year)`; period `TRT * SR + Period + (1 | Year) + (1 | Year:Pasture)`; GreenFeed `TRT * SR + RotationPeriod + (1 | Year) + (1 | Year:Pasture)`. No period interactions, animal intercept or AR(1) candidate. Response-family rules and animal-year Table 1 averaging remain in place. This supersedes older model-structure notes below. Restart R and rerun all data/model/export chunks.
 
 

@@ -1,3 +1,5 @@
+Current Table 1 family evidence: Table1_Gamma_Log_Validation.txt and strict Gamma tests in Validate_Original_Methods.R. Animal-year aggregation remains unchanged; earlier Gaussian Table 1 evidence is historical.
+
 Current full period interaction plus Year:Pasture evidence: Full_Period_Nested_Validation.txt and Validate_Original_Methods.R. Season Year-only structure retained.
 
 Current season post-hoc/superscript evidence: Season_Posthoc_Superscript_Validation.txt and Table2/WholeSeason workbook checks in Validate_Original_Methods.R.

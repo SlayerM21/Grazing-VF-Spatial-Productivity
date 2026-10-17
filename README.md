@@ -1,5 +1,8 @@
 # AFRI grazing analysis
 
+Current Table 1 family update: Grazing_h, Resting_h, Traveling_h and mean_DDT_day use Gamma with a log link on the original animal-year season averages, with `TRT * SR + (1 | Year)`. Responses are not log-transformed. Nonpositive fitted response values and failed Gamma fits are reported explicitly; Table 1 does not switch to Gaussian/Tweedie. Other model structures/family rules, Tukey superscripts and exports remain unchanged. This supersedes earlier Gaussian Table 1 notes below.
+
+
 Current update: season models remain `TRT * SR + (1 | Year)`; period models now use `TRT * SR * Period + (1 | Year) + (1 | Year:Pasture)`, and GreenFeed uses `TRT * SR * RotationPeriod + (1 | Year) + (1 | Year:Pasture)`. All period interactions and their omnibus P-value columns are included. Family rules, season averaging, superscripts and disabled animal/AR(1) structures remain unchanged. This supersedes older additive-period notes below.
 
 

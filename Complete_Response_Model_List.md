@@ -2,20 +2,20 @@
 
 Season-table post-hoc letters compare all six TRT × SR EMM cells within each response using Tukey adjustment. They are displayed as Unicode superscripts immediately after the EMM and before ± SE (for example, 12.75ᵃ ± 0.61). Table2 and WholeSeason_Additional now include these letters. When pasture cells are unreplicated the comparisons are explicitly exploratory. Raw EMM/SE and plain letters remain available in EMMs_Raw and CLD; missing/nonestimable letters are not invented. Period letters retain their existing temporal comparison scope.
 
-Season-level responses (including Gaussian Table 1 animal-year season averages) use `response ~ TRT * SR + (1 | Year)`.
+Season-level responses (including Gamma/log Table 1 animal-year season averages) use `response ~ TRT * SR + (1 | Year)`.
 
 Period-level responses use `response ~ TRT * SR * Period + (1 | Year) + (1 | Year:Pasture)`.
 
 Global GreenFeed uses `gas ~ TRT * SR * RotationPeriod + (1 | Year) + (1 | Year:Pasture)`. RGP and Pasture_ID aliases are equivalent in source analyses. Period includes TRT:Period, SR:Period and TRT:SR:Period interactions. There is no animal random intercept or AR(1) candidate. The separate endpoint ANCOVA source retains its IBW covariate.
 
-Existing Gaussian/Gamma/Tweedie family rules are retained. Table 1 uses Gaussian animal-year averages. Diagnostics, KS/Lilliefors tests, EMM/SE and workbook routing remain enabled. Actual study-data numerical results require a fresh complete run; old fits and exports must not be reused. Treatment-cell replication remains limited; changing covariance does not create replication.
+Existing Gaussian/Gamma/Tweedie family rules are retained. Table 1 uses Gamma/log on original strictly positive animal-year averages, with no log transformation or Gaussian fallback. Diagnostics, KS/Lilliefors tests, EMM/SE and workbook routing remain enabled. Actual study-data numerical results require a fresh complete run; old fits and exports must not be reused. Treatment-cell replication remains limited; changing covariance does not create replication.
 
 | Entry | Response | Scale | Family rule | Formula | Input dataset |
 |---|---|---|---|---|---|
-| 1 | Grazing_h | season | gaussian | `Grazing_h ~ TRT * SR + (1 \| Year)` | Table1_Grazing_Behaviors |
-| 2 | Resting_h | season | gaussian | `Resting_h ~ TRT * SR + (1 \| Year)` | Table1_Grazing_Behaviors |
-| 3 | Traveling_h | season | gaussian | `Traveling_h ~ TRT * SR + (1 \| Year)` | Table1_Grazing_Behaviors |
-| 4 | mean_DDT_day | season | gaussian | `mean_DDT_day ~ TRT * SR + (1 \| Year)` | Table1_Grazing_Behaviors |
+| 1 | Grazing_h | season | gamma_log_strict | `Grazing_h ~ TRT * SR + (1 \| Year)` | Table1_Grazing_Behaviors |
+| 2 | Resting_h | season | gamma_log_strict | `Resting_h ~ TRT * SR + (1 \| Year)` | Table1_Grazing_Behaviors |
+| 3 | Traveling_h | season | gamma_log_strict | `Traveling_h ~ TRT * SR + (1 \| Year)` | Table1_Grazing_Behaviors |
+| 4 | mean_DDT_day | season | gamma_log_strict | `mean_DDT_day ~ TRT * SR + (1 \| Year)` | Table1_Grazing_Behaviors |
 | 5 | CH4_Mean_g_d | season | auto_positive | `CH4_Mean_g_d ~ TRT * SR + (1 \| Year)` | dressler_animal_means |
 | 6 | CO2_Mean_g_d | season | auto_positive | `CO2_Mean_g_d ~ TRT * SR + (1 \| Year)` | dressler_animal_means |
 | 7 | Smooth_Period_ADG | season | gaussian | `Smooth_Period_ADG ~ TRT * SR + (1 \| Year)` | animal_spline_metrics |

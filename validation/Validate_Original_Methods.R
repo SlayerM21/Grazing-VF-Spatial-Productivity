@@ -110,3 +110,23 @@ for(response in unique(analysis_omnibus_tests$Response[analysis_omnibus_tests$Sc
  stopifnot(all(c('TRT:Period','SR:Period','TRT:SR:Period') %in% rows$Term))
 }
 cat('PASS: period omnibus records and publication columns include all period interactions\n')
+
+for(response in c('Grazing_h','Resting_h','Traveling_h','mean_DDT_day')) {
+ fit<-canonical_fits[[paste0('table1__',response)]]
+ stopifnot(fit$distribution=='Gamma',fit$link=='log',inherits(fit$model,'glmmTMB'))
+ original<-canonical_datasets$table1[[response]]
+ stopifnot(identical(as.numeric(model.frame(fit$model)[[response]]),as.numeric(original)))
+ for(bad in c(0,-1)){
+  saved<-canonical_datasets$table1[[response]];canonical_datasets$table1[[response]][1]<-bad
+  spec<-selected %>% filter(Dataset_key=='table1',Response==response)
+  failed<-try(afri_fit_one_response(spec),silent=TRUE)
+  stopifnot(inherits(failed,'try-error'),grepl('strictly positive',as.character(failed)))
+  canonical_datasets$table1[[response]]<-saved
+ }
+}
+cat('PASS: all four Table 1 fits are Gamma/log on unchanged original values; zeros/negatives explicitly rejected\n')
+# Validate the convergence-failure path cannot silently switch Table 1 to Gaussian.
+original_fitter<-afri_try_glmmtmb;afri_try_glmmtmb<-function(...)NULL
+failed<-try(afri_fit_season_glmmtmb(canonical_fits[['table1__Grazing_h']]$data,'Grazing_h','animal','Gamma',allow_gaussian_fallback=FALSE),silent=TRUE)
+stopifnot(inherits(failed,'try-error'),grepl('no Gaussian fallback',as.character(failed)))
+afri_try_glmmtmb<-original_fitter

@@ -2,9 +2,9 @@
   "source_file": "AFRI_CHAPTER_2_Master_Code_Year_Random.Rmd",
   "source_sha256": "80d420e290269268841b0348a8c53a2c1292d96461e54e08763a8161681f11cf",
   "revised_file": "AFRI_CHAPTER_2_Optimized.Rmd",
-  "revised_sha256": "9d7ffbe79bc91ad6368096052a90d810ee2945e1424a6296d7cf5918d3414288",
+  "revised_sha256": "1af82119f5ae20501e6302a5ddecd37643d2a235a3a245ac689ccfbb5345f3d6",
   "source_lines": 33602,
-  "revised_lines": 24805,
+  "revised_lines": 24818,
   "audit_rows": 191,
   "response_specifications": 44,
   "study_execution": "Not run: original HMM, BW, GreenFeed and GIS inputs unavailable",
@@ -158,9 +158,9 @@
     "stale_result_filter": "Reporting copies exclude response keys absent from the current registry; original environment objects are unchanged"
   },
   "prior_additive_statistical_synthetic_assertions": 59,
-  "word_document_sha256": "37adf8f30c95fa3d4d2ffc82359f6370f602913f86b538ec99092e633d157a10",
+  "word_document_sha256": "c55ed57bd0e6569bee4cc7daefc3f882a66a99ac9e182630b7a4d6c31ea5e0fc",
   "word_document_validation": {
-    "bytes": 26132,
+    "bytes": 26299,
     "model_entries": 56,
     "status": "Regenerated from restored model catalog; DOCX ZIP integrity checked; visual pagination not checked",
     "evidence": "validation/Original_Methods_Restoration_Validation.txt"
@@ -274,7 +274,7 @@
       "mean_DDT_day"
     ],
     "aggregation": "Daily values averaged within animal-year; DDT meters converted to km before mean",
-    "family": "Gaussian identity for all four",
+    "family": "Gamma log-link for all four, original untransformed positive responses",
     "validation": "Actual aggregation builder checked with uneven monthly coverage; season Gaussian model fitting/inference and XLSX write/read passed"
   },
   "requested_additive_year_pasture": {
@@ -291,5 +291,18 @@
     "scope": "Exploratory when management cells unreplicated; period temporal CLDs unchanged",
     "validation": "Table2 and WholeSeason_Additional Excel readback confirms superscript placement; multiple/missing-letter formatting checked; numeric EMM/SE preserved",
     "evidence": "validation/Season_Posthoc_Superscript_Validation.txt"
+  },
+  "table1_gamma_log": {
+    "responses": [
+      "Grazing_h",
+      "Resting_h",
+      "Traveling_h",
+      "mean_DDT_day"
+    ],
+    "formula": "response ~ TRT * SR + (1 | Year)",
+    "family": "Gamma(link = log)",
+    "transform": "None; original animal-year response values",
+    "fallback": "No Gaussian/Tweedie fallback; explicit error for nonpositive responses or failed Gamma fit",
+    "validation": "Synthetic fits, original-value identity, zero/negative rejection, forced convergence failure and workbook checks passed; exact study fits not run without inputs"
   }
 }

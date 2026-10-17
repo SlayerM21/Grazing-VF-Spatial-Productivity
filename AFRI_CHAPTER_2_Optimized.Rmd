@@ -63,7 +63,7 @@ The requested season structure is `TRT * SR + (1 | Year)`. Period responses use
 `TRT * SR * Period + (1 | Year) + (1 | Year:Pasture)`; Global GreenFeed uses
 `TRT * SR * RotationPeriod + (1 | Year) + (1 | Year:Pasture)`.
 Period effects include all two-way and three-way management interactions. There are no
-animal random intercepts or AR(1) candidates. Table 1 retains Gaussian models of
+animal random intercepts or AR(1) candidates. Table 1 uses Gamma/log models on original positive
 animal-year season averages; other response-family rules remain unchanged.
 Treatment replication and residual diagnostics must still inform interpretation.
 
@@ -20275,10 +20275,10 @@ canonical_pasture_influence_audit
 canonical_specs <- dplyr::bind_rows(
   tibble::tribble(
     ~Table, ~Dataset_key, ~Dataset, ~Response, ~Scale, ~Unit, ~Subject, ~Family_rule,
-    "TABLE 1", "table1", "Table1_Grazing_Behaviors", "Grazing_h", "season", "animal", NA_character_, "gaussian",
-    "TABLE 1", "table1", "Table1_Grazing_Behaviors", "Resting_h", "season", "animal", NA_character_, "gaussian",
-    "TABLE 1", "table1", "Table1_Grazing_Behaviors", "Traveling_h", "season", "animal", NA_character_, "gaussian",
-    "TABLE 1", "table1", "Table1_Grazing_Behaviors", "mean_DDT_day", "season", "animal", NA_character_, "gaussian"
+    "TABLE 1", "table1", "Table1_Grazing_Behaviors", "Grazing_h", "season", "animal", NA_character_, "gamma_log_strict",
+    "TABLE 1", "table1", "Table1_Grazing_Behaviors", "Resting_h", "season", "animal", NA_character_, "gamma_log_strict",
+    "TABLE 1", "table1", "Table1_Grazing_Behaviors", "Traveling_h", "season", "animal", NA_character_, "gamma_log_strict",
+    "TABLE 1", "table1", "Table1_Grazing_Behaviors", "mean_DDT_day", "season", "animal", NA_character_, "gamma_log_strict"
   ),
   tibble::tibble(
     Table = "TABLE 2",
@@ -20656,6 +20656,14 @@ afri_distribution_audit <- function(data, response, dataset, scale, unit) {
 }
 
 afri_resolve_family <- function(y, family_rule) {
+  if (family_rule == "gamma_log_strict") {
+    observed <- y[is.finite(y)]
+    if (!length(observed) || any(observed <= 0))
+      stop("Table 1 Gamma/log requires strictly positive original response values; no shifting, log transformation, or family fallback is applied.")
+    return(list(distribution = "Gamma", link = "log",
+      note = "Prespecified Gamma log-link on original positive animal-year season averages; no family selection/fallback."))
+  }
+
   y <- y[is.finite(y)]
   has_negative <- any(y < 0)
   has_zero <- any(y == 0)
@@ -21230,7 +21238,8 @@ afri_fit_season_glmmtmb <- function(
     d,
     response,
     unit,
-    distribution
+    distribution,
+    allow_gaussian_fallback = TRUE
 ) {
 
   formula_text <- afri_season_formula_text(
@@ -21288,6 +21297,9 @@ afri_fit_season_glmmtmb <- function(
   # Same fixed-effect structure; Gaussian fallback only when
   # the requested positive-family model is numerically invalid.
   # ----------------------------------------------------------
+
+  if (!isTRUE(allow_gaussian_fallback))
+    stop(response, ": requested Gamma/log fit did not converge with a positive-definite Hessian; no Gaussian fallback is allowed for Table 1.")
 
   gaussian_fallback <- afri_fit_season_gaussian(
     d,
@@ -21962,7 +21974,8 @@ afri_fit_one_response <- function(spec_row) {
       fit <- afri_fit_season_gaussian(d, response, unit)
     } else {
       fit <- afri_fit_season_glmmtmb(
-        d, response, unit, family_resolution$distribution
+        d, response, unit, family_resolution$distribution,
+        allow_gaussian_fallback = dataset_key != "table1"
       )
     }
   } else {

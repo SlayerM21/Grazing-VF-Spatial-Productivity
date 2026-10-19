@@ -130,3 +130,12 @@ original_fitter<-afri_try_glmmtmb;afri_try_glmmtmb<-function(...)NULL
 failed<-try(afri_fit_season_glmmtmb(canonical_fits[['table1__Grazing_h']]$data,'Grazing_h','animal','Gamma',allow_gaussian_fallback=FALSE),silent=TRUE)
 stopifnot(inherits(failed,'try-error'),grepl('no Gaussian fallback',as.character(failed)))
 afri_try_glmmtmb<-original_fitter
+
+for(sheet in names(publication_table_objects)) {
+ tab<-openxlsx::read.xlsx(w,sheet=sheet,check.names=FALSE)
+ if(!nrow(tab))next
+ indices<-match(gsub(' ','.',publication_cells,fixed=TRUE),gsub(' ','.',names(tab),fixed=TRUE))
+ cells<-unlist(tab[,indices,drop=FALSE],use.names=FALSE)
+ stopifnot(all(grepl('\u00B1',cells,fixed=TRUE)))
+}
+cat('PASS: every publication sheet read back from Excel contains the actual U+00B1 plus/minus symbol\n')

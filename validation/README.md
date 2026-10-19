@@ -1,3 +1,5 @@
+Current plus/minus source-encoding evidence: Plus_Minus_Encoding_Validation.txt and publication-sheet checks in Validate_Original_Methods.R.
+
 Current Table 1 family evidence: Table1_Gamma_Log_Validation.txt and strict Gamma tests in Validate_Original_Methods.R. Animal-year aggregation remains unchanged; earlier Gaussian Table 1 evidence is historical.
 
 Current full period interaction plus Year:Pasture evidence: Full_Period_Nested_Validation.txt and Validate_Original_Methods.R. Season Year-only structure retained.

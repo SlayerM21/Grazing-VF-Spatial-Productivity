@@ -4858,7 +4858,7 @@ build_table1_component <- function(model, variable_label) {
       SE = as.numeric(SE),
       Cell = paste(TRT, SR),
       Display = sprintf(
-        "%.2f ± %.2f %s",
+        "%.2f \u00B1 %.2f %s",
         EMM,
         SE,
         PostHoc_Letter
@@ -8250,7 +8250,7 @@ bw_eda_figures[["eda_daily_group_trajectories"]] <- ggplot(
   facet_grid(Year ~ SR, scales = "free_y") +
   labs(
     title = "Mean Daily Body-Weight Trajectories",
-    subtitle = "Ribbon represents mean ± one descriptive standard error",
+    subtitle = "Ribbon represents mean \u00B1 one descriptive standard error",
     x = "Day of study",
     y = "Mean body weight (kg)",
     color = "Treatment",
@@ -11560,7 +11560,7 @@ bw_final_statistical_table <- function(model, inference, response, model_id) {
     if (length(value) && is.finite(value[1L])) value[1L] else NA_real_
   }
   tab %>% dplyr::mutate(Model = model_id, Response = response,
-    EMM_SE = sprintf("%.3f ± %.3f", emmean, SE),
+    EMM_SE = sprintf("%.3f \u00B1 %.3f", emmean, SE),
     P_Treatment = get_p("TRT"), P_Stocking_Rate = get_p("SR"),
     P_TRT_x_SR = get_p("TRT:SR"),
     Inference_status = ifelse(is.finite(emmean) & is.finite(SE) &
@@ -14616,7 +14616,7 @@ gf_rotation_reporting_table <- function(gas, model_data, inference) {
     means$.group <- NA_character_
   }
   means %>% left_join(ns, by = c("TRT", "SR", "RotationPeriod")) %>%
-    mutate(Response = gas, EMM_plus_SE = sprintf("%.2f ± %.2f", emmean, SE),
+    mutate(Response = gas, EMM_plus_SE = sprintf("%.2f \u00B1 %.2f", emmean, SE),
       P_TRT = p_for("TRT"), P_SR = p_for("SR"), P_TRT_SR = p_for("TRT:SR"),
       Letters_Status = if_else(is.na(.group), "Unavailable; review inference diagnostic", "Available"),
       Letter_Comparison = "TRT within SR x RGP; Tukey; full period-interaction contrasts",
@@ -24230,7 +24230,7 @@ publication_ensure <- function(data, columns, fill = "—") {
   data
 }
 publication_superscript <- function(x) {
-  glyphs <- setNames(strsplit("ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖ𐞥ʳˢᵗᵘᵛʷˣʸᶻ", "")[[1]], letters)
+  glyphs <- setNames(strsplit("\u1D43\u1D47\u1D9C\u1D48\u1D49\u1DA0\u1D4D\u02B0\u2071\u02B2\u1D4F\u02E1\u1D50\u207F\u1D52\u1D56\U000107A5\u02B3\u02E2\u1D57\u1D58\u1D5B\u02B7\u02E3\u02B8\u1DBB", "")[[1]], letters)
   vapply(x, function(label) {
     if (is.na(label) || !nzchar(trimws(label))) return("")
     characters <- strsplit(gsub("[[:space:]]+", "", label), "")[[1]]
@@ -24324,7 +24324,7 @@ publication_unique(analysis_model_n, publication_keys, "Retained model sample si
 
 professional_emm_long <- publication_retained_emmeans |>
   dplyr::select(-dplyr::any_of(c("Professional_Label", "Display_Digits",
-    "Cell", "PostHoc_Letter", "Grouping_scope", "EMM ± SE"))) |>
+    "Cell", "PostHoc_Letter", "Grouping_scope", "EMM_SE_Display"))) |>
   dplyr::left_join(
     analysis_response_metadata |>
       dplyr::select(dplyr::all_of(publication_keys), Professional_Label, Display_Digits),
@@ -24351,9 +24351,9 @@ professional_emm_long <- professional_emm_long |>
     by = publication_cld_keys
   ) |>
   dplyr::mutate(
-    `EMM ± SE` = ifelse(is.finite(EMM) & is.finite(SE),
+    EMM_SE_Display = ifelse(is.finite(EMM) & is.finite(SE),
       paste0(publication_number(EMM, Display_Digits),
-             publication_superscript(PostHoc_Letter), " ± ",
+             publication_superscript(PostHoc_Letter), " \u00B1 ",
              publication_number(SE, Display_Digits)), "—")
   )
 
@@ -24393,8 +24393,8 @@ publication_make_table <- function(worksheet_name, period = FALSE) {
     dplyr::semi_join(dplyr::select(meta, dplyr::all_of(publication_keys)),
                      by = publication_keys) |>
     dplyr::filter(Scale == scale) |>
-    dplyr::select(dplyr::all_of(result_keys), Cell, `EMM ± SE`) |>
-    tidyr::pivot_wider(names_from = Cell, values_from = `EMM ± SE`, values_fill = "—")
+    dplyr::select(dplyr::all_of(result_keys), Cell, EMM_SE_Display) |>
+    tidyr::pivot_wider(names_from = Cell, values_from = EMM_SE_Display, values_fill = "—")
   means <- publication_ensure(means, publication_cells)
   data <- meta |>
     dplyr::left_join(means, by = publication_keys) |>
@@ -24481,11 +24481,11 @@ Professional_Exploratory_Management_P_values <- professional_omnibus_long |>
   dplyr::filter(grepl("TRT|SR", Term),
                 is.finite(P_value_raw), !is.finite(P_value))
 Professional_Table_Notes <- tibble::tibble(Note = c(
-  "Values are original-method response-scale EMM ± SE. A dash denotes unavailable/nonestimable results; no replacement values are imputed.",
+  "Values are original-method response-scale EMM \u00B1 SE. A dash denotes unavailable/nonestimable results; no replacement values are imputed.",
   "n is the number of fitted model observations. Observation_unit identifies animal versus pasture records; Scale in the raw results distinguishes season versus grazing-period observations. Physical pasture is the independent experimental unit for TRT/SR allocation, and Model_Summary retains animal, pasture and year counts. Repeated years/animals are not independent treatment replicates.",
   "P: TRT, P: SR and P: TRT × SR are retained Type III model tests. RGP models include the period main effect and all period interactions; period differences can vary across management combinations.",
   "Management P-values displayed where pasture cells are unreplicated are exploratory/conditional. Their limitations are shown in the Inference column; raw and reporting P-values remain distinct in the omnibus audit.",
-  "Superscript letters follow the EMM before ± SE. Season letters compare all six TRT × SR cells within each response using Tukey adjustment; with unreplicated pasture cells these are exploratory. Different letter groups refer only to the retained comparison scope and multiplicity adjustment. The CLD sheet records Grouping_scope and CLD_Type. Shared letters do not establish equivalence.",
+  "Superscript letters follow the EMM before \u00B1 SE. Season letters compare all six TRT × SR cells within each response using Tukey adjustment; with unreplicated pasture cells these are exploratory. Different letter groups refer only to the retained comparison scope and multiplicity adjustment. The CLD sheet records Grouping_scope and CLD_Type. Shared letters do not establish equivalence.",
   "Random-effect structure follows the retained experimental-unit/repeated-measure model. Year is random where supported, with no fixed-effect P: Year reported.",
   "Table_1_Grazing_Behaviors reports Gaussian animal-year season-average models. Table1_Reference_ANOVA contains their canonical omnibus tests. No standalone Table 1 workbook is written.",
   "Table2 combines whole-season animal-performance and individual-animal responses. WholeSeason_Additional includes whole-season CH4 and CO2 per active hectare, area grazed and LWG per active hectare, alongside the distinct daily land rates. Moving a response between sheets does not change its dataset, model, sample size or inference.",

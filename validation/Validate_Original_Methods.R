@@ -79,6 +79,8 @@ cat('PASS: current publication tables use original-method outputs\n')
 diag <- afri_model_diagnostics(canonical_fits[['period_pasture__CH4_g_per_active_ha_all_pasture']])
 stopifnot(nrow(diag$summary)==1,is.finite(diag$summary$Lilliefors_D),is.finite(diag$summary$Lilliefors_p))
 cat('PASS: original Gamma model diagnostics executed\n')
+canonical_table1_iqr_audit<-bind_rows(lapply(selected$Response[selected$Dataset_key=='table1'],function(r)afri_table1_iqr(canonical_datasets$table1,r)$audit))
+canonical_table1_iqr_summary<-canonical_table1_iqr_audit %>% count(Response,IQR_excluded)
 export_results<-TRUE
 analysis_output_dir<-file.path(tempdir(),'restored-method-workbook')
 eval(parse(text=chunks[['publication-statistical-exports']]))
@@ -114,10 +116,10 @@ cat('PASS: period omnibus records and publication columns include all period int
 for(response in c('Grazing_h','Resting_h','Traveling_h','mean_DDT_day')) {
  fit<-canonical_fits[[paste0('table1__',response)]]
  stopifnot(fit$distribution=='Gamma',fit$link=='log',inherits(fit$model,'glmmTMB'))
- original<-canonical_datasets$table1[[response]]
+ original<-afri_table1_iqr(canonical_datasets$table1,response)$data[[response]]
  stopifnot(identical(as.numeric(model.frame(fit$model)[[response]]),as.numeric(original)))
  for(bad in c(0,-1)){
-  saved<-canonical_datasets$table1[[response]];canonical_datasets$table1[[response]][1]<-bad
+  saved<-canonical_datasets$table1[[response]];canonical_datasets$table1[[response]][]<-bad
   spec<-selected %>% filter(Dataset_key=='table1',Response==response)
   failed<-try(afri_fit_one_response(spec),silent=TRUE)
   stopifnot(inherits(failed,'try-error'),grepl('strictly positive',as.character(failed)))
@@ -139,3 +141,8 @@ for(sheet in names(publication_table_objects)) {
  stopifnot(all(grepl('\u00B1',cells,fixed=TRUE)))
 }
 cat('PASS: every publication sheet read back from Excel contains the actual U+00B1 plus/minus symbol\n')
+
+stopifnot(all(c('Table1_IQR_Summary','Table1_IQR_Audit') %in% names(w)))
+iqr_rows<-openxlsx::read.xlsx(w,sheet='Table1_IQR_Audit')
+stopifnot(nrow(iqr_rows)==nrow(canonical_datasets$table1)*4)
+cat('PASS: workbook includes per-response IQR audit and exclusion summary\n')

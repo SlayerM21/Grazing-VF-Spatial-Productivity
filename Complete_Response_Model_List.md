@@ -1,5 +1,7 @@
 # Current AFRI model structures
 
+Table 1 screening now excludes response values below Q1 - 1.5 × IQR or above Q3 + 1.5 × IQR, separately for Grazing_h, Resting_h, Traveling_h and mean_DDT_day. Quartiles are computed across finite animal-year season averages within each response, using R type-7 quantiles. Values exactly on the fences are retained. Fewer than four finite values are explicitly unscreened. Each response is fitted on its own retained subset; raw datasets and other responses are not modified. Table1_IQR_Summary, Table1_IQR_Audit and Table1_IQR_Excluded record counts, fences and identifiable excluded records. Missing responses remain subject to the existing complete-case rules. Gamma/log and all fixed/random structures remain unchanged. Report this outcome-dependent screening when interpreting treatment comparisons; the unfiltered source records are retained.
+
 Season-table post-hoc letters compare all six TRT × SR EMM cells within each response using Tukey adjustment. They are displayed as Unicode superscripts immediately after the EMM and before ± SE (for example, 12.75ᵃ ± 0.61). Table2 and WholeSeason_Additional now include these letters. When pasture cells are unreplicated the comparisons are explicitly exploratory. Raw EMM/SE and plain letters remain available in EMMs_Raw and CLD; missing/nonestimable letters are not invented. Period letters retain their existing temporal comparison scope.
 
 Season-level responses (including Gamma/log Table 1 animal-year season averages) use `response ~ TRT * SR + (1 | Year)`.

@@ -21929,6 +21929,35 @@ afri_fit_period_model <- function(
 
 
 ```{r canonical-fit-functions, message=FALSE, warning=FALSE}
+# Screen each Table 1 response independently, across animal-year season means.
+# Reporting copies and fitted subsets change; original source datasets do not.
+afri_table1_iqr <- function(data, response) {
+  values <- as.numeric(data[[response]])
+  finite <- is.finite(values)
+  sufficient <- sum(finite) >= 4L
+  quartiles <- if (sufficient) stats::quantile(values[finite], c(0.25, 0.75),
+    na.rm = TRUE, type = 7, names = FALSE) else c(NA_real_, NA_real_)
+  spread <- diff(quartiles)
+  lower <- quartiles[1] - 1.5 * spread
+  upper <- quartiles[2] + 1.5 * spread
+  flag <- if (sufficient) finite & (values < lower | values > upper) else rep(FALSE, length(values))
+  ids <- intersect(c("Year", "Pasture", "TRT", "SR", "REAL_ID", "SEID"), names(data))
+  audit <- tibble::as_tibble(data[, ids, drop = FALSE])
+  audit$Dataset_key <- "table1"
+  audit$Dataset <- "Table1_Grazing_Behaviors"
+  audit$Table <- "TABLE 1"
+  audit$Response <- response
+  audit$Source_row <- seq_along(values)
+  audit$Value <- values
+  audit$Q1 <- quartiles[1]; audit$Q3 <- quartiles[2]
+  audit$IQR <- as.numeric(spread); audit$Lower_fence <- lower; audit$Upper_fence <- upper
+  audit$IQR_excluded <- flag
+  audit$Status <- ifelse(!finite, "Missing/nonfinite response; model complete-case rule applies",
+    ifelse(flag, "Excluded: outside 1.5 x IQR fences", if (sufficient)
+      "Retained by IQR rule" else "Not screened: fewer than four finite values"))
+  list(data = data[!flag, , drop = FALSE], audit = audit)
+}
+
 afri_fit_one_response <- function(spec_row) {
   dataset_key <- spec_row$Dataset_key[[1]]
   dataset_label <- spec_row$Dataset[[1]]
@@ -21945,6 +21974,8 @@ afri_fit_one_response <- function(spec_row) {
   if (!response %in% names(raw_data)) {
     stop(dataset_label, " does not contain response ", response)
   }
+
+  if (dataset_key == "table1") raw_data <- afri_table1_iqr(raw_data, response)$data
 
   d <- afri_prepare_model_data(
     raw_data,
@@ -21998,6 +22029,9 @@ afri_fit_one_response <- function(spec_row) {
   fit$subject <- subject
   fit$family_rule <- family_rule
   fit$family_resolution_note <- family_resolution$note
+  if (dataset_key == "table1") fit$family_resolution_note <- paste(
+    fit$family_resolution_note,
+    "Response-specific 1.5 x IQR exclusion across animal-year season averages applied before fitting; see Table1_IQR sheets.")
   fit$data <- d
   fit$distribution_audit <- distribution_audit
   fit$repeated_structure <- paste("Final fitted formula:", fit$formula)
@@ -22037,6 +22071,17 @@ canonical_specs <- canonical_specs |>
   dplyr::filter(!Response %in% c("active_ha_outside_rgp", "GHG_g_per_active_ha_all_pasture",
     "GHG_g_per_active_ha_inside_rgp", "GHG_g_per_kg_LWG", "GHG_g_per_active_ha_whole_season",
     "GHG_g_per_kg_LWG_whole_season"))
+
+canonical_table1_iqr_audit <- dplyr::bind_rows(lapply(
+  canonical_specs$Response[canonical_specs$Dataset_key == "table1"], function(response)
+    afri_table1_iqr(canonical_datasets$table1, response)$audit))
+canonical_table1_iqr_summary <- canonical_table1_iqr_audit |>
+  dplyr::group_by(Table, Dataset_key, Dataset, Response) |>
+  dplyr::summarise(N_input = dplyr::n(), N_finite = sum(is.finite(Value)),
+    N_missing_response = sum(!is.finite(Value)), N_IQR_excluded = sum(IQR_excluded),
+    N_retained_finite = sum(is.finite(Value) & !IQR_excluded),
+    Q1 = dplyr::first(Q1), Q3 = dplyr::first(Q3), IQR = dplyr::first(IQR),
+    Lower_fence = dplyr::first(Lower_fence), Upper_fence = dplyr::first(Upper_fence), .groups = "drop")
 
 canonical_fits <- vector("list", nrow(canonical_specs))
 canonical_fit_status <- vector("list", nrow(canonical_specs))
@@ -24599,6 +24644,9 @@ professional_tables_excel <- c(publication_table_objects, list(
   Model_Summary = publication_model_metadata,
   Model_Fit_Status = analysis_fit_status,
   Model_Diagnostics = analysis_model_diagnostics,
+  Table1_IQR_Summary = canonical_table1_iqr_summary,
+  Table1_IQR_Audit = canonical_table1_iqr_audit,
+  Table1_IQR_Excluded = dplyr::filter(canonical_table1_iqr_audit, IQR_excluded),
   KS_Lilliefors_All_Models = all_model_lilliefors,
   Residual_Variance_Review = publication_optional("analysis_residual_variance_review"),
   Random_Effect_Variances = publication_optional("analysis_random_effect_variances"),

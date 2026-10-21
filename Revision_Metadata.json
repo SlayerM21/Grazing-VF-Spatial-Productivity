@@ -2,9 +2,9 @@
   "source_file": "AFRI_CHAPTER_2_Master_Code_Year_Random.Rmd",
   "source_sha256": "80d420e290269268841b0348a8c53a2c1292d96461e54e08763a8161681f11cf",
   "revised_file": "AFRI_CHAPTER_2_Optimized.Rmd",
-  "revised_sha256": "be80ee9d4dc94cc2b989b39d49d4a8867fc43e7d9d20a5acbc666f07aa592c24",
+  "revised_sha256": "a1b2652abf9cd895591961d899881d88639580b6e5ddab5774c8adcd5e7d3034",
   "source_lines": 33602,
-  "revised_lines": 24818,
+  "revised_lines": 24866,
   "audit_rows": 191,
   "response_specifications": 44,
   "study_execution": "Not run: original HMM, BW, GreenFeed and GIS inputs unavailable",
@@ -158,9 +158,9 @@
     "stale_result_filter": "Reporting copies exclude response keys absent from the current registry; original environment objects are unchanged"
   },
   "prior_additive_statistical_synthetic_assertions": 59,
-  "word_document_sha256": "c55ed57bd0e6569bee4cc7daefc3f882a66a99ac9e182630b7a4d6c31ea5e0fc",
+  "word_document_sha256": "b068838a9f9c9943bef991ee654758d5143e02095629621eec5e8a058ba1af25",
   "word_document_validation": {
-    "bytes": 26299,
+    "bytes": 26720,
     "model_entries": 56,
     "status": "Regenerated from restored model catalog; DOCX ZIP integrity checked; visual pagination not checked",
     "evidence": "validation/Original_Methods_Restoration_Validation.txt"
@@ -314,5 +314,23 @@
     "change": "ASCII Unicode escapes for plus/minus and superscript literals; ASCII internal display-column name",
     "validation": "All five publication worksheets saved/read with actual U+00B1; superscript, model and numeric-output regressions pass",
     "scope": "Presentation/source encoding only"
+  },
+  "table1_iqr_screening": {
+    "level": "Animal-year season averages, separately per response across all animal-years",
+    "responses": [
+      "Grazing_h",
+      "Resting_h",
+      "Traveling_h",
+      "mean_DDT_day"
+    ],
+    "rule": "Below Q1 - 1.5*IQR or above Q3 + 1.5*IQR; R type-7 quartiles of finite values",
+    "source_preservation": "Original canonical source data unchanged; response-specific fit subsets",
+    "workbook_sheets": [
+      "Table1_IQR_Summary",
+      "Table1_IQR_Audit",
+      "Table1_IQR_Excluded"
+    ],
+    "model_changes": "No family/link/formula changes; models refitted after screening",
+    "validation": "Synthetic threshold, exclusion, original-value preservation, Gamma fits and workbook audit tests passed; actual study counts unavailable without research inputs"
   }
 }

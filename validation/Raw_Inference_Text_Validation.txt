@@ -1,0 +1,7 @@
+PASS: Validate_Original_Methods.R with representative synthetic fitted models.
+PASS: per-model report count equals canonical fit registry count.
+PASS: all four inference sections present in fitted-model text report.
+PASS: combined ANOVA and contrast row counts retained.
+PASS: raw ANOVA P-values round-trip at tolerance 1e-14.
+PASS: existing model, workbook, superscript and IQR checks.
+Actual study analysis not run: original study inputs unavailable.

@@ -24679,6 +24679,69 @@ professional_tables_excel <- professional_tables_excel[
   vapply(professional_tables_excel, nrow, integer(1)) > 0L
 ]
 professional_tables_excel$Export_Catalog <- professional_export_catalog
+# Export stored numeric inference results without publication-cell formatting.
+# No model fitting, hypothesis testing, or adjustment is repeated here.
+afri_export_inference_text <- function(output_dir, fits, tables) {
+  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  if (!dir.exists(output_dir)) stop("Cannot create raw inference directory: ", output_dir)
+  old_options <- options(digits = 17, scipen = 0)
+  on.exit(options(old_options), add = TRUE)
+  write_report <- function(lines, filename) {
+    con <- file(file.path(output_dir, filename), open = "wt", encoding = "UTF-8")
+    on.exit(close(con), add = TRUE)
+    writeLines(enc2utf8(lines), con)
+  }
+  table_text <- function(data) {
+    data <- as.data.frame(data)
+    if (!nrow(data)) return("No available rows (not fitted, not estimable, or not applicable).")
+    # Tab-separated output avoids console/tibble row truncation and retains
+    # numeric precision, literal NA, full comparison labels, and all columns.
+    capture.output(utils::write.table(data, file = "", sep = "\t",
+      row.names = FALSE, col.names = TRUE, quote = TRUE, na = "NA"))
+  }
+  for (label in names(tables)) {
+    write_report(c(label, "Tab-separated raw values; NA means unavailable.", "",
+                   table_text(tables[[label]])), paste0(label, ".txt"))
+  }
+  manifest <- data.frame(Model_ID = names(fits), File = character(length(fits)),
+                         Status = character(length(fits)))
+  for (i in seq_along(fits)) {
+    fit <- fits[[i]]
+    # Numbered filenames remain short even for long response/model identifiers.
+    filename <- sprintf("Model_%03d.txt", i)
+    manifest$File[i] <- filename
+    available <- !is.null(fit) && !is.null(fit$model)
+    manifest$Status[i] <- if (available) "Fitted" else "Fit unavailable; see Model_Fit_Status.txt"
+    lines <- c(paste("Model ID:", names(fits)[i]), paste("Status:", manifest$Status[i]))
+    if (available) {
+      lines <- c(lines, paste("Formula:", paste(deparse(stats::formula(fit$model)), collapse = " ")),
+        paste("Distribution:", fit$distribution), paste("Link:", fit$link),
+        "Stored results only; inference notes and adjustment labels apply.",
+        "Raw_P_value is retained separately from any masked manuscript P-value.")
+      for (label in c("ANOVA", "EMMs", "Posthoc_Contrasts", "Posthoc_Letters")) {
+        data <- tables[[label]]
+        if (nrow(data)) data <- data[
+          as.character(data$Dataset) == fit$dataset &
+          as.character(data$Response) == fit$response &
+          as.character(data$Table) == fit$table, , drop = FALSE]
+        lines <- c(lines, "", paste("===", label, "==="), table_text(data))
+      }
+    }
+    write_report(lines, filename)
+  }
+  write_report(c("Model report index", "", table_text(manifest)), "Model_Index.txt")
+  invisible(manifest)
+}
+raw_inference_text_dir <- file.path(analysis_output_dir, "02_Model_Results", "Raw_Inference_Text")
+if (isTRUE(export_results)) {
+  raw_inference_text_manifest <- afri_export_inference_text(
+    raw_inference_text_dir, canonical_fits,
+    list(ANOVA = canonical_omnibus_tests, EMMs = canonical_emmeans,
+         Posthoc_Contrasts = canonical_contrasts, Posthoc_Letters = canonical_cld,
+         Model_Fit_Status = canonical_fit_status))
+  message("Raw ANOVA and post-hoc text reports: ", raw_inference_text_dir)
+}
+
 professional_excel_file <- file.path(analysis_output_dir, "01_Tables",
                                      "AFRI_Statistical_Results.xlsx")
 professional_export_qc <- tibble::tibble(

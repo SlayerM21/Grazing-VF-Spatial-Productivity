@@ -146,3 +146,20 @@ stopifnot(all(c('Table1_IQR_Summary','Table1_IQR_Audit') %in% names(w)))
 iqr_rows<-openxlsx::read.xlsx(w,sheet='Table1_IQR_Audit')
 stopifnot(nrow(iqr_rows)==nrow(canonical_datasets$table1)*4)
 cat('PASS: workbook includes per-response IQR audit and exclusion summary\n')
+
+# Text reports must preserve all rows and raw numeric results without refitting.
+text_dir<-file.path(analysis_output_dir,'02_Model_Results','Raw_Inference_Text')
+stopifnot(file.exists(file.path(text_dir,'ANOVA.txt')),
+          file.exists(file.path(text_dir,'Posthoc_Contrasts.txt')),
+          sum(grepl('^Model_[0-9]+[.]txt$',list.files(text_dir)))==length(canonical_fits))
+read_text_table<-function(name) utils::read.delim(file.path(text_dir,name),skip=3,
+  check.names=FALSE,stringsAsFactors=FALSE)
+anova_text<-read_text_table('ANOVA.txt')
+stopifnot(nrow(anova_text)==nrow(canonical_omnibus_tests),
+          isTRUE(all.equal(anova_text$Raw_P_value,canonical_omnibus_tests$Raw_P_value,tolerance=1e-14)))
+contrast_text<-read_text_table('Posthoc_Contrasts.txt')
+stopifnot(nrow(contrast_text)==nrow(canonical_contrasts))
+report<-readLines(file.path(text_dir,'Model_001.txt'),warn=FALSE)
+stopifnot(all(vapply(c('=== ANOVA ===','=== EMMs ===','=== Posthoc_Contrasts ===','=== Posthoc_Letters ==='),
+  function(x)any(grepl(x,report,fixed=TRUE)),logical(1))))
+cat('PASS: per-model text reports and combined raw inference tables exported; ANOVA P-values round-trip without truncation\n')

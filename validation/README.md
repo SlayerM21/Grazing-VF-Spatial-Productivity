@@ -1,3 +1,5 @@
+Current raw inference TXT export evidence: Raw_Inference_Text_Validation.txt and round-trip checks in Validate_Original_Methods.R.
+
 Current Table 1 IQR evidence: Table1_IQR_Validation.txt and Validate_Table1_IQR.R, plus model/workbook regression checks in Validate_Original_Methods.R.
 
 Current plus/minus source-encoding evidence: Plus_Minus_Encoding_Validation.txt and publication-sheet checks in Validate_Original_Methods.R.

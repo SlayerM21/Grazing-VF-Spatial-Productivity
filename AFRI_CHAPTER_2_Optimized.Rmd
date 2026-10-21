@@ -703,7 +703,7 @@ if (length(monthly_ddt_for_shapiro) >= 3L) {
 
 #### 2.3.1 Screen Monthly Summaries with the IQR Rule
 
-The 1.5 × IQR rule is used as a transparent screening procedure. Flagged
+The 1 × IQR rule is used as a transparent screening procedure. Flagged
 records are retained in `Monthly_DDT` and excluded only from the filtered
 sensitivity dataset used below.
 
@@ -712,8 +712,8 @@ Q1 <- quantile(Monthly_DDT$mean_DDT_day, 0.25, na.rm = TRUE)
 Q3 <- quantile(Monthly_DDT$mean_DDT_day, 0.75, na.rm = TRUE)
 IQR_value <- Q3 - Q1
 
-lower_limit <- Q1 - 1.5 * IQR_value
-upper_limit <- Q3 + 1.5 * IQR_value
+lower_limit <- Q1 - 1 * IQR_value
+upper_limit <- Q3 + 1 * IQR_value
 
 Monthly_DDT <- Monthly_DDT |>
   dplyr::mutate(
@@ -1144,8 +1144,8 @@ apply_monthly_iqr <- function(data) {
       Q1 = quantile(mean_hours, 0.25, na.rm = TRUE),
       Q3 = quantile(mean_hours, 0.75, na.rm = TRUE),
       IQR_value = Q3 - Q1,
-      lower_limit = Q1 - 1.5 * IQR_value,
-      upper_limit = Q3 + 1.5 * IQR_value,
+      lower_limit = Q1 - 1 * IQR_value,
+      upper_limit = Q3 + 1 * IQR_value,
       IQR_outlier = mean_hours < lower_limit |
                     mean_hours > upper_limit
     ) %>%
@@ -21931,21 +21931,22 @@ afri_fit_period_model <- function(
 ```{r canonical-fit-functions, message=FALSE, warning=FALSE}
 # Screen each Table 1 response independently, across animal-year season means.
 # Reporting copies and fitted subsets change; original source datasets do not.
-afri_table1_iqr <- function(data, response) {
+afri_table1_iqr <- function(data, response, dataset_key = "table1",
+  dataset = "Table1_Grazing_Behaviors", table = "TABLE 1") {
   values <- as.numeric(data[[response]])
   finite <- is.finite(values)
   sufficient <- sum(finite) >= 4L
   quartiles <- if (sufficient) stats::quantile(values[finite], c(0.25, 0.75),
     na.rm = TRUE, type = 7, names = FALSE) else c(NA_real_, NA_real_)
   spread <- diff(quartiles)
-  lower <- quartiles[1] - 1.5 * spread
-  upper <- quartiles[2] + 1.5 * spread
+  lower <- quartiles[1] - 1 * spread
+  upper <- quartiles[2] + 1 * spread
   flag <- if (sufficient) finite & (values < lower | values > upper) else rep(FALSE, length(values))
   ids <- intersect(c("Year", "Pasture", "TRT", "SR", "REAL_ID", "SEID"), names(data))
   audit <- tibble::as_tibble(data[, ids, drop = FALSE])
-  audit$Dataset_key <- "table1"
-  audit$Dataset <- "Table1_Grazing_Behaviors"
-  audit$Table <- "TABLE 1"
+  audit$Dataset_key <- rep(dataset_key, nrow(audit))
+  audit$Dataset <- rep(dataset, nrow(audit))
+  audit$Table <- rep(table, nrow(audit))
   audit$Response <- response
   audit$Source_row <- seq_along(values)
   audit$Value <- values
@@ -21953,7 +21954,7 @@ afri_table1_iqr <- function(data, response) {
   audit$IQR <- as.numeric(spread); audit$Lower_fence <- lower; audit$Upper_fence <- upper
   audit$IQR_excluded <- flag
   audit$Status <- ifelse(!finite, "Missing/nonfinite response; model complete-case rule applies",
-    ifelse(flag, "Excluded: outside 1.5 x IQR fences", if (sufficient)
+    ifelse(flag, "Excluded: outside 1 x IQR fences", if (sufficient)
       "Retained by IQR rule" else "Not screened: fewer than four finite values"))
   list(data = data[!flag, , drop = FALSE], audit = audit)
 }
@@ -21975,7 +21976,8 @@ afri_fit_one_response <- function(spec_row) {
     stop(dataset_label, " does not contain response ", response)
   }
 
-  if (dataset_key == "table1") raw_data <- afri_table1_iqr(raw_data, response)$data
+  if (dataset_key == "table1" || response == "RGP_Smooth_ADG_kg_day")
+    raw_data <- afri_table1_iqr(raw_data, response, dataset_key, dataset_label, spec_row$Table[[1]])$data
 
   d <- afri_prepare_model_data(
     raw_data,
@@ -22029,9 +22031,9 @@ afri_fit_one_response <- function(spec_row) {
   fit$subject <- subject
   fit$family_rule <- family_rule
   fit$family_resolution_note <- family_resolution$note
-  if (dataset_key == "table1") fit$family_resolution_note <- paste(
+  if (dataset_key == "table1" || response == "RGP_Smooth_ADG_kg_day") fit$family_resolution_note <- paste(
     fit$family_resolution_note,
-    "Response-specific 1.5 x IQR exclusion across animal-year season averages applied before fitting; see Table1_IQR sheets.")
+    "Response-specific 1 x IQR exclusion applied before fitting (animal-year season averages for Table 1; animal-period records for RGP ADG); see Response_IQR sheets.")
   fit$data <- d
   fit$distribution_audit <- distribution_audit
   fit$repeated_structure <- paste("Final fitted formula:", fit$formula)
@@ -22079,6 +22081,23 @@ canonical_table1_iqr_summary <- canonical_table1_iqr_audit |>
   dplyr::group_by(Table, Dataset_key, Dataset, Response) |>
   dplyr::summarise(N_input = dplyr::n(), N_finite = sum(is.finite(Value)),
     N_missing_response = sum(!is.finite(Value)), N_IQR_excluded = sum(IQR_excluded),
+    N_retained_finite = sum(is.finite(Value) & !IQR_excluded),
+    Q1 = dplyr::first(Q1), Q3 = dplyr::first(Q3), IQR = dplyr::first(IQR),
+    Lower_fence = dplyr::first(Lower_fence), Upper_fence = dplyr::first(Upper_fence), .groups = "drop")
+
+# Combined audit also covers the requested period ADG response.
+canonical_response_iqr_audit <- dplyr::bind_rows(lapply(seq_len(nrow(canonical_specs)), function(i) {
+  spec <- canonical_specs[i, , drop = FALSE]
+  if (spec$Dataset_key != "table1" && spec$Response != "RGP_Smooth_ADG_kg_day") return(NULL)
+  audit <- afri_table1_iqr(canonical_datasets[[spec$Dataset_key]],
+    spec$Response, spec$Dataset_key, spec$Dataset, spec$Table)$audit
+  for (key in intersect(c("Year", "Pasture", "TRT", "SR", "REAL_ID", "SEID"), names(audit)))
+    audit[[key]] <- as.character(audit[[key]])
+  audit
+}))
+canonical_response_iqr_summary <- canonical_response_iqr_audit |>
+  dplyr::group_by(Table, Dataset_key, Dataset, Response) |>
+  dplyr::summarise(N_input = dplyr::n(), N_IQR_excluded = sum(IQR_excluded),
     N_retained_finite = sum(is.finite(Value) & !IQR_excluded),
     Q1 = dplyr::first(Q1), Q3 = dplyr::first(Q3), IQR = dplyr::first(IQR),
     Lower_fence = dplyr::first(Lower_fence), Upper_fence = dplyr::first(Upper_fence), .groups = "drop")
@@ -24669,6 +24688,11 @@ professional_tables_excel <- c(publication_table_objects, list(
 ))
 # Apply the same current-response filter to raw contrasts, model metadata,
 # diagnostics and every response-keyed QC sheet, including older session objects.
+if (exists("canonical_response_iqr_audit")) {
+  professional_tables_excel$Response_IQR_Audit <- canonical_response_iqr_audit
+  professional_tables_excel$Response_IQR_Summary <- canonical_response_iqr_summary
+  professional_tables_excel$Response_IQR_Excluded <- dplyr::filter(canonical_response_iqr_audit, IQR_excluded)
+}
 professional_tables_excel <- lapply(professional_tables_excel, publication_active_rows)
 professional_export_catalog <- tibble::tibble(
   Worksheet = names(professional_tables_excel),
@@ -24732,6 +24756,49 @@ afri_export_inference_text <- function(output_dir, fits, tables) {
   write_report(c("Model report index", "", table_text(manifest)), "Model_Index.txt")
   invisible(manifest)
 }
+# One distribution figure per canonical response, including unavailable fits.
+# Compare the original analysis input with the actual fitted response values.
+afri_export_response_distributions <- function(output_dir, specs, datasets, fits) {
+  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  inventory <- vector("list", nrow(specs))
+  for (i in seq_len(nrow(specs))) {
+    spec <- specs[i, , drop = FALSE]
+    id <- afri_model_id(spec$Dataset_key, spec$Response)
+    raw <- datasets[[spec$Dataset_key]][[spec$Response]]
+    raw <- raw[is.finite(raw)]
+    fit <- fits[[id]]
+    used <- if (!is.null(fit$model)) fit$data[[spec$Response]] else numeric()
+    used <- used[is.finite(used)]
+    filename <- sprintf("Distribution_%03d.png", i)
+    saved <- afri_save_diagnostic_png(file.path(output_dir, filename), function() {
+      old <- graphics::par(mfrow = c(2, 2), mar = c(4, 4, 3, 1), oma = c(0, 0, 3, 0))
+      on.exit(graphics::par(old), add = TRUE)
+      panel <- function(x, title) {
+        if (!length(x)) { graphics::plot.new(); graphics::title(paste(title, "- no data")); return() }
+        graphics::hist(x, breaks = "FD", main = paste(title, "(n =", length(x), ")"),
+          xlab = spec$Response, col = "grey80", border = "white")
+      }
+      qq <- function(x, title) {
+        if (length(x) < 2L) { graphics::plot.new(); graphics::title("QQ plot unavailable"); return() }
+        stats::qqnorm(x, main = title); stats::qqline(x, col = "red")
+      }
+      panel(raw, "Before screening"); panel(used, "Model data")
+      qq(raw, "Normal QQ: before screening"); qq(used, "Normal QQ: model data")
+      graphics::mtext(paste(spec$Dataset, spec$Response, sep = " / "), outer = TRUE)
+    })
+    inventory[[i]] <- data.frame(Model_ID = id, Response = spec$Response,
+      File = filename, N_before = length(raw), N_model = length(used), Saved = isTRUE(saved))
+  }
+  inventory <- dplyr::bind_rows(inventory)
+  utils::write.csv(inventory, file.path(output_dir, "Distribution_Index.csv"), row.names = FALSE)
+  inventory
+}
+if (isTRUE(export_results)) {
+  response_distribution_inventory <- afri_export_response_distributions(
+    file.path(analysis_output_dir, "03_Figures", "Response_Distributions"),
+    canonical_specs, canonical_datasets, canonical_fits)
+}
+
 raw_inference_text_dir <- file.path(analysis_output_dir, "02_Model_Results", "Raw_Inference_Text")
 if (isTRUE(export_results)) {
   raw_inference_text_manifest <- afri_export_inference_text(

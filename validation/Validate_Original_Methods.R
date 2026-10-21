@@ -38,7 +38,7 @@ for(key in unique(canonical_specs$Dataset_key)){
 # Preserve within-year repeated animal identifiers for the animal-period fixture.
 canonical_datasets$shrunk_period$SEID<-paste(canonical_datasets$shrunk_period$Year,canonical_datasets$shrunk_period$Pasture)
 canonical_datasets$shrunk_period$REAL_ID<-canonical_datasets$shrunk_period$SEID
-selected<-filter(canonical_specs,Response %in% c('Grazing_h','Resting_h','Traveling_h','mean_DDT_day','CH4_Mean_g_d','active_ha_whole_season','active_ha_all_pasture','CH4_g_per_active_ha_all_pasture','CH4_g_per_active_ha_inside_rgp','LWG_kg_per_active_ha_all_pasture','RGP_CH4_g_day'))
+selected<-filter(canonical_specs,Response %in% c('Grazing_h','Resting_h','Traveling_h','mean_DDT_day','CH4_Mean_g_d','active_ha_whole_season','active_ha_all_pasture','CH4_g_per_active_ha_all_pasture','CH4_g_per_active_ha_inside_rgp','LWG_kg_per_active_ha_all_pasture','RGP_CH4_g_day','RGP_Smooth_ADG_kg_day'))
 canonical_specs<-selected
 canonical_fits<-list()
 for(i in seq_len(nrow(selected))){
@@ -81,6 +81,9 @@ stopifnot(nrow(diag$summary)==1,is.finite(diag$summary$Lilliefors_D),is.finite(d
 cat('PASS: original Gamma model diagnostics executed\n')
 canonical_table1_iqr_audit<-bind_rows(lapply(selected$Response[selected$Dataset_key=='table1'],function(r)afri_table1_iqr(canonical_datasets$table1,r)$audit))
 canonical_table1_iqr_summary<-canonical_table1_iqr_audit %>% count(Response,IQR_excluded)
+for(e in as.list(parse(text=chunks[['canonical-fit-functions']]))){
+ if(is.call(e)&&identical(e[[1]],as.name('<-'))&&is.symbol(e[[2]])&&as.character(e[[2]]) %in% c('canonical_response_iqr_audit','canonical_response_iqr_summary'))eval(e)
+}
 export_results<-TRUE
 analysis_output_dir<-file.path(tempdir(),'restored-method-workbook')
 eval(parse(text=chunks[['publication-statistical-exports']]))
@@ -163,3 +166,10 @@ report<-readLines(file.path(text_dir,'Model_001.txt'),warn=FALSE)
 stopifnot(all(vapply(c('=== ANOVA ===','=== EMMs ===','=== Posthoc_Contrasts ===','=== Posthoc_Letters ==='),
   function(x)any(grepl(x,report,fixed=TRUE)),logical(1))))
 cat('PASS: per-model text reports and combined raw inference tables exported; ANOVA P-values round-trip without truncation\n')
+
+stopifnot(all(response_distribution_inventory$Saved),nrow(response_distribution_inventory)==nrow(canonical_specs))
+stopifnot(all(file.info(file.path(analysis_output_dir,'03_Figures','Response_Distributions',response_distribution_inventory$File))$size>0))
+fit<-canonical_fits[['shrunk_period__RGP_Smooth_ADG_kg_day']]
+expected<-afri_table1_iqr(canonical_datasets$shrunk_period,'RGP_Smooth_ADG_kg_day')$data
+stopifnot(nrow(fit$data)==nrow(expected),'Response_IQR_Audit' %in% names(w))
+cat('PASS: every response distribution PNG saved; period ADG screened and combined IQR workbook audit present\n')

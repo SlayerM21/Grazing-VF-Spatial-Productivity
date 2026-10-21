@@ -1,0 +1,7 @@
+PASS: exact 1-IQR boundaries, all four Table 1 responses, ADG labels and independent exclusions.
+PASS: source data preserved; small samples explicitly unscreened.
+PASS: representative ADG model fitted after response-specific screening.
+PASS: all representative response distribution PNGs created and nonempty; inventory matches specs.
+PASS: combined response IQR audit written to workbook.
+PASS: model structure, Gamma/log, raw TXT and workbook regression checks.
+Tests use synthetic data; full study data unavailable.

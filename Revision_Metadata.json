@@ -2,9 +2,9 @@
   "source_file": "AFRI_CHAPTER_2_Master_Code_Year_Random.Rmd",
   "source_sha256": "80d420e290269268841b0348a8c53a2c1292d96461e54e08763a8161681f11cf",
   "revised_file": "AFRI_CHAPTER_2_Optimized.Rmd",
-  "revised_sha256": "98d218b63ac88bfd6875df4e2a4cd20ba445fb77c82b1a797e99c08571d1fcd6",
+  "revised_sha256": "3a0006949d9ad8052ca7155aac5bad88d77e591e25e5f20716b756f218cf8d55",
   "source_lines": 33602,
-  "revised_lines": 24929,
+  "revised_lines": 24996,
   "audit_rows": 191,
   "response_specifications": 44,
   "study_execution": "Not run: original HMM, BW, GreenFeed and GIS inputs unavailable",
@@ -323,7 +323,7 @@
       "Traveling_h",
       "mean_DDT_day"
     ],
-    "rule": "Below Q1 - 1.5*IQR or above Q3 + 1.5*IQR; R type-7 quartiles of finite values",
+    "rule": "Below Q1 - 1*IQR or above Q3 + 1*IQR; R type-7 quartiles of finite values",
     "source_preservation": "Original canonical source data unchanged; response-specific fit subsets",
     "workbook_sheets": [
       "Table1_IQR_Summary",
@@ -333,5 +333,17 @@
     "model_changes": "No family/link/formula changes; models refitted after screening",
     "validation": "Synthetic threshold, exclusion, original-value preservation, Gamma fits and workbook audit tests passed; actual study counts unavailable without research inputs"
   },
-  "raw_inference_text_export": "Stored canonical ANOVA, EMM, contrasts and CLD tables exported to combined and per-model UTF-8 TXT reports; no refitting or retesting."
+  "raw_inference_text_export": "Stored canonical ANOVA, EMM, contrasts and CLD tables exported to combined and per-model UTF-8 TXT reports; no refitting or retesting.",
+  "response_screening_and_distributions": {
+    "multiplier": 1,
+    "responses": [
+      "Grazing_h",
+      "Resting_h",
+      "Traveling_h",
+      "mean_DDT_day",
+      "RGP_Smooth_ADG_kg_day"
+    ],
+    "plots": "Histograms and normal QQ plots of original analysis input and fitted data for every canonical response; PNGs and CSV inventory in 03_Figures/Response_Distributions",
+    "audit": "Response_IQR_Summary, Response_IQR_Audit, Response_IQR_Excluded"
+  }
 }

@@ -1,3 +1,5 @@
+Current 1-IQR and response-distribution evidence: One_IQR_Distribution_Validation.txt, Validate_Table1_IQR.R and Validate_Original_Methods.R. This supersedes earlier 1.5-IQR screening evidence.
+
 Current raw inference TXT export evidence: Raw_Inference_Text_Validation.txt and round-trip checks in Validate_Original_Methods.R.
 
 Current Table 1 IQR evidence: Table1_IQR_Validation.txt and Validate_Table1_IQR.R, plus model/workbook regression checks in Validate_Original_Methods.R.

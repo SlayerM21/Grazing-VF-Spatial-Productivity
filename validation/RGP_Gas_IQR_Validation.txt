@@ -1,0 +1,6 @@
+PASS: both RGP_CH4_g_day and RGP_CO2_g_day use independent 1-IQR fences.
+PASS: known low/high extremes excluded from synthetic gas fixtures.
+PASS: fitted gas response values equal screened original values.
+PASS: complete per-response audits with exact exclusion counts.
+PASS: existing model structure, workbook, TXT, distribution PNG and other screening regression checks.
+Actual study inputs unavailable; synthetic validation only.

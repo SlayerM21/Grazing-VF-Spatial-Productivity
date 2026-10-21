@@ -2,7 +2,7 @@
   "source_file": "AFRI_CHAPTER_2_Master_Code_Year_Random.Rmd",
   "source_sha256": "80d420e290269268841b0348a8c53a2c1292d96461e54e08763a8161681f11cf",
   "revised_file": "AFRI_CHAPTER_2_Optimized.Rmd",
-  "revised_sha256": "3a0006949d9ad8052ca7155aac5bad88d77e591e25e5f20716b756f218cf8d55",
+  "revised_sha256": "c86efe8c18ca29f58100f33cd262c06af60828a5a2f6027aa59f4b5e57e7232a",
   "source_lines": 33602,
   "revised_lines": 24996,
   "audit_rows": 191,
@@ -341,7 +341,9 @@
       "Resting_h",
       "Traveling_h",
       "mean_DDT_day",
-      "RGP_Smooth_ADG_kg_day"
+      "RGP_Smooth_ADG_kg_day",
+      "RGP_CH4_g_day",
+      "RGP_CO2_g_day"
     ],
     "plots": "Histograms and normal QQ plots of original analysis input and fitted data for every canonical response; PNGs and CSV inventory in 03_Figures/Response_Distributions",
     "audit": "Response_IQR_Summary, Response_IQR_Audit, Response_IQR_Excluded"

@@ -35,3 +35,12 @@ stopifnot(sum(z$audit$IQR_excluded)==2,all(z$audit$Dataset_key=='shrunk_period')
 border<-tibble(Grazing_h=c(0,1,2,3,4,5,6,11))
 z<-afri_table1_iqr(border,'Grazing_h');stopifnot(tail(z$audit$IQR_excluded,1))
 cat('PASS: ADG independently screened and stricter 1-IQR boundary verified\n')
+
+for(response in c('RGP_CH4_g_day','RGP_CO2_g_day')) {
+ gas<-d;gas[[response]]<-c(1,10,11,12,13,14,15,100)
+ result<-afri_table1_iqr(gas,response,'shrunk_period','shrunk_bw_period_analysis','SHRUNK BW — PERIOD')
+ stopifnot(sum(result$audit$IQR_excluded)==2,
+   identical(result$data[[response]],c(10,11,12,13,14,15)),
+   all(result$audit$Response==response))
+}
+cat('PASS: CH4 and CO2 response-specific fences exclude both extreme values\n')

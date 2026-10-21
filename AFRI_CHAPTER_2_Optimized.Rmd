@@ -21976,7 +21976,7 @@ afri_fit_one_response <- function(spec_row) {
     stop(dataset_label, " does not contain response ", response)
   }
 
-  if (dataset_key == "table1" || response == "RGP_Smooth_ADG_kg_day")
+  if (dataset_key == "table1" || response %in% c("RGP_Smooth_ADG_kg_day", "RGP_CH4_g_day", "RGP_CO2_g_day"))
     raw_data <- afri_table1_iqr(raw_data, response, dataset_key, dataset_label, spec_row$Table[[1]])$data
 
   d <- afri_prepare_model_data(
@@ -22031,9 +22031,9 @@ afri_fit_one_response <- function(spec_row) {
   fit$subject <- subject
   fit$family_rule <- family_rule
   fit$family_resolution_note <- family_resolution$note
-  if (dataset_key == "table1" || response == "RGP_Smooth_ADG_kg_day") fit$family_resolution_note <- paste(
+  if (dataset_key == "table1" || response %in% c("RGP_Smooth_ADG_kg_day", "RGP_CH4_g_day", "RGP_CO2_g_day")) fit$family_resolution_note <- paste(
     fit$family_resolution_note,
-    "Response-specific 1 x IQR exclusion applied before fitting (animal-year season averages for Table 1; animal-period records for RGP ADG); see Response_IQR sheets.")
+    "Response-specific 1 x IQR exclusion applied before fitting (animal-year season averages for Table 1; animal-period records for RGP ADG/CH4/CO2); see Response_IQR sheets.")
   fit$data <- d
   fit$distribution_audit <- distribution_audit
   fit$repeated_structure <- paste("Final fitted formula:", fit$formula)
@@ -22085,10 +22085,10 @@ canonical_table1_iqr_summary <- canonical_table1_iqr_audit |>
     Q1 = dplyr::first(Q1), Q3 = dplyr::first(Q3), IQR = dplyr::first(IQR),
     Lower_fence = dplyr::first(Lower_fence), Upper_fence = dplyr::first(Upper_fence), .groups = "drop")
 
-# Combined audit also covers the requested period ADG response.
+# Combined audit also covers the requested period ADG and gas responses.
 canonical_response_iqr_audit <- dplyr::bind_rows(lapply(seq_len(nrow(canonical_specs)), function(i) {
   spec <- canonical_specs[i, , drop = FALSE]
-  if (spec$Dataset_key != "table1" && spec$Response != "RGP_Smooth_ADG_kg_day") return(NULL)
+  if (spec$Dataset_key != "table1" && !spec$Response %in% c("RGP_Smooth_ADG_kg_day", "RGP_CH4_g_day", "RGP_CO2_g_day")) return(NULL)
   audit <- afri_table1_iqr(canonical_datasets[[spec$Dataset_key]],
     spec$Response, spec$Dataset_key, spec$Dataset, spec$Table)$audit
   for (key in intersect(c("Year", "Pasture", "TRT", "SR", "REAL_ID", "SEID"), names(audit)))

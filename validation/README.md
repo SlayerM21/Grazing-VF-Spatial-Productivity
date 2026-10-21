@@ -1,3 +1,5 @@
+Current RGP CH4/CO2 1-IQR evidence: RGP_Gas_IQR_Validation.txt and gas-subset/audit checks in Validate_Original_Methods.R and Validate_Table1_IQR.R.
+
 Current 1-IQR and response-distribution evidence: One_IQR_Distribution_Validation.txt, Validate_Table1_IQR.R and Validate_Original_Methods.R. This supersedes earlier 1.5-IQR screening evidence.
 
 Current raw inference TXT export evidence: Raw_Inference_Text_Validation.txt and round-trip checks in Validate_Original_Methods.R.

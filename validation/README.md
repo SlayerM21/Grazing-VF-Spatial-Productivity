@@ -1,3 +1,5 @@
+Current grazing/traveling screening: Half_IQR_Validation.txt and Validate_Table1_IQR.R. Grazing_h and Traveling_h use 0.5-IQR; the other five screened responses use 1-IQR. Earlier uniform-multiplier evidence is historical.
+
 Current RGP CH4/CO2 1-IQR evidence: RGP_Gas_IQR_Validation.txt and gas-subset/audit checks in Validate_Original_Methods.R and Validate_Table1_IQR.R.
 
 Current 1-IQR and response-distribution evidence: One_IQR_Distribution_Validation.txt, Validate_Table1_IQR.R and Validate_Original_Methods.R. This supersedes earlier 1.5-IQR screening evidence.

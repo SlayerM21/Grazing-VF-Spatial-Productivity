@@ -1,0 +1,6 @@
+PASS: Grazing_h and Traveling_h use 0.5-IQR with exact type-7 fences.
+PASS: boundary fixture retained by 1-IQR but excluded by 0.5-IQR.
+PASS: Resting_h, DDT and RGP ADG/CH4/CO2 retain 1-IQR.
+PASS: per-record audit and summary include IQR_multiplier.
+PASS: representative model fitting, Excel, raw TXT and response distribution exports.
+Synthetic validation only; study analysis must be rerun with original data.

@@ -17,7 +17,9 @@ for(i in seq_along(responses))d[[responses[i]]]<-x[c(i:8,seq_len(i-1))]
 original<-d
 for(response in responses){
  result<-afri_table1_iqr(d,response);q<-quantile(d[[response]],c(0.25,0.75),names=FALSE)
- expected<-which(d[[response]]<q[1]-1*diff(q)|d[[response]]>q[2]+1*diff(q))
+ k<-if(response %in% c("Grazing_h","Traveling_h"))0.5 else 1
+ expected<-which(d[[response]]<q[1]-k*diff(q)|d[[response]]>q[2]+k*diff(q))
+ stopifnot(all(result$audit$IQR_multiplier==k))
  stopifnot(nrow(result$data)==6,identical(result$audit$Source_row[result$audit$IQR_excluded],expected),all(result$audit$Q1==q[1]),identical(result$data,d[-expected,,drop=FALSE]),identical(d,original))
 }
 canonical_specs<-tibble(Dataset_key='table1',Response=responses)
@@ -25,7 +27,7 @@ canonical_datasets<-list(table1=d)
 eval(audit_expression);eval(summary_expression)
 stopifnot(nrow(canonical_table1_iqr_audit)==32,nrow(canonical_table1_iqr_summary)==4,all(canonical_table1_iqr_summary$N_IQR_excluded==2))
 small<-afri_table1_iqr(d[1:3,],responses[1]);stopifnot(nrow(small$data)==3,!any(small$audit$IQR_excluded))
-cat('PASS: all four responses use exact 1-IQR fences independently; correct source rows excluded; values/source data unchanged; actual audit/summary records verified; small samples explicitly unscreened\n')
+cat('PASS: all four responses use exact response-specific IQR fences independently; correct source rows excluded; values/source data unchanged; actual audit/summary records verified; small samples explicitly unscreened\n')
 
 # Period ADG uses the same rule with its own dataset labels and fences.
 adg<-d;adg$RGP_Smooth_ADG_kg_day<-c(-9,1,2,3,4,5,6,99)
@@ -44,3 +46,11 @@ for(response in c('RGP_CH4_g_day','RGP_CO2_g_day')) {
    all(result$audit$Response==response))
 }
 cat('PASS: CH4 and CO2 response-specific fences exclude both extreme values\n')
+
+# Value 8 lies outside 0.5-IQR but inside 1-IQR on this fixture.
+for(response in responses){
+ fixture<-tibble(value=c(0,1,2,3,4,5,6,8));names(fixture)<-response
+ result<-afri_table1_iqr(fixture,response)
+ stopifnot(tail(result$audit$IQR_excluded,1)==(response %in% c('Grazing_h','Traveling_h')))
+}
+cat('PASS: 0.5-IQR grazing/traveling exclusions differ from 1-IQR resting/DDT on boundary fixture\n')

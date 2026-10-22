@@ -2,9 +2,9 @@
   "source_file": "AFRI_CHAPTER_2_Master_Code_Year_Random.Rmd",
   "source_sha256": "80d420e290269268841b0348a8c53a2c1292d96461e54e08763a8161681f11cf",
   "revised_file": "AFRI_CHAPTER_2_Optimized.Rmd",
-  "revised_sha256": "c86efe8c18ca29f58100f33cd262c06af60828a5a2f6027aa59f4b5e57e7232a",
+  "revised_sha256": "b85bfd26aa775c74da312cc4d6125f846006078f2a5ebf307bf93e3dc9078ed6",
   "source_lines": 33602,
-  "revised_lines": 24996,
+  "revised_lines": 25001,
   "audit_rows": 191,
   "response_specifications": 44,
   "study_execution": "Not run: original HMM, BW, GreenFeed and GIS inputs unavailable",
@@ -323,7 +323,7 @@
       "Traveling_h",
       "mean_DDT_day"
     ],
-    "rule": "Below Q1 - 1*IQR or above Q3 + 1*IQR; R type-7 quartiles of finite values",
+    "rule": "Below Q1 - k*IQR or above Q3 + k*IQR; k=0.5 for Grazing_h/Traveling_h, k=1 otherwise; R type-7 finite-value quartiles",
     "source_preservation": "Original canonical source data unchanged; response-specific fit subsets",
     "workbook_sheets": [
       "Table1_IQR_Summary",
@@ -335,7 +335,15 @@
   },
   "raw_inference_text_export": "Stored canonical ANOVA, EMM, contrasts and CLD tables exported to combined and per-model UTF-8 TXT reports; no refitting or retesting.",
   "response_screening_and_distributions": {
-    "multiplier": 1,
+    "multiplier": {
+      "Grazing_h": 0.5,
+      "Traveling_h": 0.5,
+      "Resting_h": 1,
+      "mean_DDT_day": 1,
+      "RGP_Smooth_ADG_kg_day": 1,
+      "RGP_CH4_g_day": 1,
+      "RGP_CO2_g_day": 1
+    },
     "responses": [
       "Grazing_h",
       "Resting_h",

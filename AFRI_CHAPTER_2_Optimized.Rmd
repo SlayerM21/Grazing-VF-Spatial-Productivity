@@ -1137,15 +1137,15 @@ par(mfrow = c(1, 1))
 #### 3.4.1 Apply the IQR Rule Within Each Month
 
 ```{r hmm-monthly-behavior-summaries-filtered, message=FALSE, warning=FALSE}
-apply_monthly_iqr <- function(data) {
+apply_monthly_iqr <- function(data, multiplier = 1) {
   data %>%
     group_by(Month) %>%
     mutate(
       Q1 = quantile(mean_hours, 0.25, na.rm = TRUE),
       Q3 = quantile(mean_hours, 0.75, na.rm = TRUE),
       IQR_value = Q3 - Q1,
-      lower_limit = Q1 - 1 * IQR_value,
-      upper_limit = Q3 + 1 * IQR_value,
+      lower_limit = Q1 - multiplier * IQR_value,
+      upper_limit = Q3 + multiplier * IQR_value,
       IQR_outlier = mean_hours < lower_limit |
                     mean_hours > upper_limit
     ) %>%
@@ -1154,13 +1154,13 @@ apply_monthly_iqr <- function(data) {
 
 # Flag outliers
 df.Grazing_monthly_flagged <-
-  apply_monthly_iqr(df.Grazing_monthly)
+  apply_monthly_iqr(df.Grazing_monthly, multiplier = 0.5)
 
 df.Resting_monthly_flagged <-
   apply_monthly_iqr(df.Resting_monthly)
 
 df.Traveling_monthly_flagged <-
-  apply_monthly_iqr(df.Traveling_monthly)
+  apply_monthly_iqr(df.Traveling_monthly, multiplier = 0.5)
 
 # Create filtered datasets
 df.Grazing_monthly_filtered <- df.Grazing_monthly_flagged %>%
@@ -21939,8 +21939,9 @@ afri_table1_iqr <- function(data, response, dataset_key = "table1",
   quartiles <- if (sufficient) stats::quantile(values[finite], c(0.25, 0.75),
     na.rm = TRUE, type = 7, names = FALSE) else c(NA_real_, NA_real_)
   spread <- diff(quartiles)
-  lower <- quartiles[1] - 1 * spread
-  upper <- quartiles[2] + 1 * spread
+  multiplier <- if (response %in% c("Grazing_h", "Traveling_h")) 0.5 else 1
+  lower <- quartiles[1] - multiplier * spread
+  upper <- quartiles[2] + multiplier * spread
   flag <- if (sufficient) finite & (values < lower | values > upper) else rep(FALSE, length(values))
   ids <- intersect(c("Year", "Pasture", "TRT", "SR", "REAL_ID", "SEID"), names(data))
   audit <- tibble::as_tibble(data[, ids, drop = FALSE])
@@ -21951,10 +21952,11 @@ afri_table1_iqr <- function(data, response, dataset_key = "table1",
   audit$Source_row <- seq_along(values)
   audit$Value <- values
   audit$Q1 <- quartiles[1]; audit$Q3 <- quartiles[2]
+  audit$IQR_multiplier <- multiplier
   audit$IQR <- as.numeric(spread); audit$Lower_fence <- lower; audit$Upper_fence <- upper
   audit$IQR_excluded <- flag
   audit$Status <- ifelse(!finite, "Missing/nonfinite response; model complete-case rule applies",
-    ifelse(flag, "Excluded: outside 1 x IQR fences", if (sufficient)
+    ifelse(flag, paste0("Excluded: outside ", multiplier, " x IQR fences"), if (sufficient)
       "Retained by IQR rule" else "Not screened: fewer than four finite values"))
   list(data = data[!flag, , drop = FALSE], audit = audit)
 }
@@ -22033,7 +22035,8 @@ afri_fit_one_response <- function(spec_row) {
   fit$family_resolution_note <- family_resolution$note
   if (dataset_key == "table1" || response %in% c("RGP_Smooth_ADG_kg_day", "RGP_CH4_g_day", "RGP_CO2_g_day")) fit$family_resolution_note <- paste(
     fit$family_resolution_note,
-    "Response-specific 1 x IQR exclusion applied before fitting (animal-year season averages for Table 1; animal-period records for RGP ADG/CH4/CO2); see Response_IQR sheets.")
+    paste0("Response-specific ", if (response %in% c("Grazing_h", "Traveling_h")) 0.5 else 1,
+      " x IQR exclusion applied before fitting (animal-year season averages for Table 1; animal-period records for RGP ADG/CH4/CO2); see Response_IQR sheets."))
   fit$data <- d
   fit$distribution_audit <- distribution_audit
   fit$repeated_structure <- paste("Final fitted formula:", fit$formula)
@@ -22082,6 +22085,7 @@ canonical_table1_iqr_summary <- canonical_table1_iqr_audit |>
   dplyr::summarise(N_input = dplyr::n(), N_finite = sum(is.finite(Value)),
     N_missing_response = sum(!is.finite(Value)), N_IQR_excluded = sum(IQR_excluded),
     N_retained_finite = sum(is.finite(Value) & !IQR_excluded),
+    IQR_multiplier = dplyr::first(IQR_multiplier),
     Q1 = dplyr::first(Q1), Q3 = dplyr::first(Q3), IQR = dplyr::first(IQR),
     Lower_fence = dplyr::first(Lower_fence), Upper_fence = dplyr::first(Upper_fence), .groups = "drop")
 
@@ -22099,6 +22103,7 @@ canonical_response_iqr_summary <- canonical_response_iqr_audit |>
   dplyr::group_by(Table, Dataset_key, Dataset, Response) |>
   dplyr::summarise(N_input = dplyr::n(), N_IQR_excluded = sum(IQR_excluded),
     N_retained_finite = sum(is.finite(Value) & !IQR_excluded),
+    IQR_multiplier = dplyr::first(IQR_multiplier),
     Q1 = dplyr::first(Q1), Q3 = dplyr::first(Q3), IQR = dplyr::first(IQR),
     Lower_fence = dplyr::first(Lower_fence), Upper_fence = dplyr::first(Upper_fence), .groups = "drop")
 

@@ -57,9 +57,9 @@ for(fit in canonical_fits){
  groups<-vapply(lme4::findbars(formula(fit$model)),function(term) paste(sort(strsplit(paste(deparse(term[[3]]),collapse=''),':',fixed=TRUE)[[1]]),collapse=':'),character(1))
  stopifnot(identical(sort(groups),if(fit$scale=='period')c('Pasture:Year','Year') else 'Year'))
  fixed<-attr(terms(lme4::nobars(formula(fit$model))),'term.labels')
- stopifnot(setequal(fixed,c('TRT','SR','TRT:SR',if(fit$scale=='period')c('Period','TRT:Period','SR:Period','TRT:SR:Period'))))
+ stopifnot(setequal(fixed,c('TRT','SR','TRT:SR',if(fit$scale=='period')c('Period'))))
 }
-cat('PASS: all synthetic season fits use Year only; period fits use full Period interactions and Year plus Year:Pasture, with no animal/AR(1) terms\n')
+cat('PASS: all synthetic season fits use Year only; period fits use additive Period effects and Year plus Year:Pasture, with no animal/AR(1) terms\n')
 
 canonical_emmeans<-bind_rows(lapply(canonical_fits,afri_get_emmeans))
 canonical_omnibus_tests<-bind_rows(lapply(canonical_fits,afri_omnibus_tests))
@@ -109,12 +109,12 @@ for(sheet in c('Table2','WholeSeason_Additional')) {
 stopifnot(is.numeric(analysis_emmeans$EMM),is.numeric(analysis_emmeans$SE))
 cat('PASS: Table2 and WholeSeason_Additional have Tukey superscripts after EMM and before ± SE in reopened Excel; raw numeric EMM/SE preserved\n')
 
-stopifnot(all(c('P: TRT × Period','P: SR × Period','P: TRT × SR × Period') %in% names(Other_Period_EMMs_Professional)))
+stopifnot('P: Period' %in% names(Other_Period_EMMs_Professional), !any(c('P: TRT × Period','P: SR × Period','P: TRT × SR × Period') %in% names(Other_Period_EMMs_Professional)))
 for(response in unique(analysis_omnibus_tests$Response[analysis_omnibus_tests$Scale=='period'])) {
  rows<-analysis_omnibus_tests %>% filter(Response==response,Scale=='period')
- stopifnot(all(c('TRT:Period','SR:Period','TRT:SR:Period') %in% rows$Term))
+ stopifnot('Period' %in% rows$Term,!any(c('TRT:Period','SR:Period','TRT:SR:Period') %in% rows$Term))
 }
-cat('PASS: period omnibus records and publication columns include all period interactions\n')
+cat('PASS: period omnibus records and publication columns include additive Period and omit period interactions\n')
 
 for(response in c('Grazing_h','Resting_h','Traveling_h','mean_DDT_day')) {
  fit<-canonical_fits[[paste0('table1__',response)]]

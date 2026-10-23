@@ -1,0 +1,8 @@
+PASS: all R chunks parse.
+PASS: representative season models retain TRT*SR and Year intercept.
+PASS: representative period models use TRT*SR+Period with Year and Year:Pasture intercepts; no period interactions.
+PASS: period omnibus and publication columns omit period interactions.
+PASS: Excel, raw TXT, screening and distribution PNG regression checks.
+Source GreenFeed formulas use TRT*SR+RotationPeriod with unchanged random effects.
+RStudio chunk_output_type is inline.
+Synthetic study fixtures only; full study inputs unavailable.

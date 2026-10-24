@@ -1,0 +1,7 @@
+PASS: all R chunks parse.
+PASS: representative period fits use all two-way/three-way Period interactions with Year and Year:Pasture intercepts.
+PASS: omnibus and publication columns include period interactions.
+PASS: model families, IQR screening, Excel, raw TXT and distribution plot checks.
+Source GreenFeed formulas restored to TRT*SR*RotationPeriod.
+Inline output retained.
+Synthetic study fixtures only; full study inputs unavailable.

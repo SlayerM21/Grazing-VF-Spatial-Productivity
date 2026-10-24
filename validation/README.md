@@ -1,3 +1,5 @@
+Current restored full-interaction evidence: Restored_Full_Interactions_Validation.txt and Validate_Original_Methods.R. Period and RotationPeriod interactions restored; chunk output remains inline. This supersedes additive-period evidence below.
+
 Current additive-period model and inline-output evidence: Additive_Period_Inline_Validation.txt and Validate_Original_Methods.R. This supersedes earlier full-period-interaction evidence.
 
 Current grazing/traveling screening: Half_IQR_Validation.txt and Validate_Table1_IQR.R. Grazing_h and Traveling_h use 0.5-IQR; the other five screened responses use 1-IQR. Earlier uniform-multiplier evidence is historical.

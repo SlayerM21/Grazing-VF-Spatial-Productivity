@@ -1,0 +1,6 @@
+PASS: all R chunks parse.
+PASS: all 22 canonical gas responses and all three ADG responses fitted using independently screened original response values at 1.5-IQR.
+PASS: boundary fixtures distinguish 1.5-IQR from 1-IQR; out-of-fence extremes excluded.
+PASS: existing 0.5-IQR grazing/traveling and 1-IQR resting/DDT remain.
+PASS: canonical and source gas audit exports, additive-period formulas, Excel, raw TXT and distribution PNG regressions.
+Tests use synthetic data; study inputs unavailable.

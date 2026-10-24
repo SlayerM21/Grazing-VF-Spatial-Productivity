@@ -109,8 +109,9 @@ afri_table1_iqr <- function(data, response, dataset_key = "table1",
     na.rm = TRUE, type = 7, names = FALSE) else c(NA_real_, NA_real_)
   spread <- diff(quartiles)
   multiplier <- if (grepl("CH4|CO2", response, ignore.case = TRUE) ||
-    response %in% c("Grazing_h", "Traveling_h", "Smooth_Period_ADG",
-      "Whole_Season_Smooth_ADG_kg_day", "RGP_Smooth_ADG_kg_day")) 0.5 else 1
+    response %in% c("Smooth_Period_ADG", "Whole_Season_Smooth_ADG_kg_day",
+      "RGP_Smooth_ADG_kg_day")) 1.5 else
+    if (response %in% c("Grazing_h", "Traveling_h")) 0.5 else 1
   lower <- quartiles[1] - multiplier * spread
   upper <- quartiles[2] + multiplier * spread
   flag <- if (sufficient) finite & (values < lower | values > upper) else rep(FALSE, length(values))
@@ -22049,8 +22050,9 @@ afri_fit_one_response <- function(spec_row) {
   if (afri_iqr_screened_response(response)) fit$family_resolution_note <- paste(
     fit$family_resolution_note,
     paste0("Response-specific ", if (grepl("CH4|CO2", response, ignore.case = TRUE) ||
-    response %in% c("Grazing_h", "Traveling_h", "Smooth_Period_ADG",
-      "Whole_Season_Smooth_ADG_kg_day", "RGP_Smooth_ADG_kg_day")) 0.5 else 1,
+    response %in% c("Smooth_Period_ADG", "Whole_Season_Smooth_ADG_kg_day",
+      "RGP_Smooth_ADG_kg_day")) 1.5 else
+    if (response %in% c("Grazing_h", "Traveling_h")) 0.5 else 1,
       " x IQR exclusion applied before fitting (finite response values within this analysis dataset); see Response_IQR sheets."))
   fit$data <- d
   fit$distribution_audit <- distribution_audit

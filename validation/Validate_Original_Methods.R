@@ -185,7 +185,7 @@ for(response in c('RGP_CH4_g_day','RGP_CO2_g_day')) {
  stopifnot(nrow(audit)==nrow(canonical_datasets$shrunk_period),
    sum(audit$IQR_excluded)==nrow(audit)-nrow(expected))
 }
-cat('PASS: both RGP gas models use exact response-specific 0.5-IQR subsets and complete exclusion audits\n')
+cat('PASS: both RGP gas models use exact response-specific 1.5-IQR subsets and complete exclusion audits\n')
 
 for(response in c('Smooth_Period_ADG','Whole_Season_Smooth_ADG_kg_day')) {
  spec<-selected %>% filter(Response==response)
@@ -193,9 +193,9 @@ for(response in c('Smooth_Period_ADG','Whole_Season_Smooth_ADG_kg_day')) {
  expected<-afri_table1_iqr(canonical_datasets[[spec$Dataset_key]],response)$data
  stopifnot(identical(as.numeric(fit$data[[response]]),as.numeric(expected[[response]])))
  audit<-canonical_response_iqr_audit %>% filter(Response==response)
- stopifnot(all(audit$IQR_multiplier==0.5),nrow(audit)==nrow(canonical_datasets[[spec$Dataset_key]]))
+ stopifnot(all(audit$IQR_multiplier==1.5),nrow(audit)==nrow(canonical_datasets[[spec$Dataset_key]]))
 }
-cat('PASS: both season ADG models use response-specific 0.5-IQR subsets and complete audits\n')
+cat('PASS: both season ADG models use response-specific 1.5-IQR subsets and complete audits\n')
 
 # Every CH4/CO2 spec must be screened, including derived gas ratios.
 gas_specs<-canonical_specs %>% filter(grepl('CH4|CO2',Response))
@@ -211,7 +211,7 @@ source_fixture<-data.frame(CH4_g_d=c(1,10,11,12,13,14,15,100))
 afri_source_iqr_audits<-list()
 source_used<-afri_source_iqr_data(source_fixture,'CH4_g_d','test_source')
 stopifnot(nrow(source_used)==6,sum(afri_source_iqr_audits$test_source$IQR_excluded)==2)
-cat('PASS: all tested CH4/CO2 gas and ratio models use 0.5-IQR; source helper filters and audits original values\n')
+cat('PASS: all tested CH4/CO2 gas and ratio models use 1.5-IQR; source helper filters and audits original values\n')
 
 stopifnot('Source_Gas_IQR_Audit' %in% names(w),nrow(openxlsx::read.xlsx(w,sheet='Source_Gas_IQR_Audit'))==8)
 cat('PASS: source gas audit survives canonical-response filtering in workbook export\n')

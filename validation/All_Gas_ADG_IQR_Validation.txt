@@ -1,0 +1,7 @@
+PASS: all R chunks parse.
+PASS: all 22 canonical CH4/CO2 responses included in synthetic fit coverage; every fitted gas subset equals independently screened original response values.
+PASS: all three ADG responses use 0.5-IQR; gas/ADG boundary values distinguish 0.5-IQR from 1-IQR.
+PASS: all tested gas/ADG records have complete response-specific audits with IQR_multiplier=0.5.
+PASS: source GreenFeed helper independently filters original CH4_g_d/CO2_g_d values; source audit sheet survives canonical filtering.
+PASS: existing additive models, Gamma/log Table 1, grazing/DDT screening, Excel, raw TXT and distribution PNG checks.
+Tests use synthetic data; study inputs unavailable.

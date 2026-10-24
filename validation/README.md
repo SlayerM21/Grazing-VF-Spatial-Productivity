@@ -1,3 +1,5 @@
+Current all-gas/all-ADG screening evidence: All_Gas_ADG_IQR_Validation.txt and expanded Validate_Original_Methods.R. All CH4/CO2 and all three ADG responses use 0.5-IQR. This supersedes the earlier 1.5-IQR season ADG settings.
+
 Current additive-period evidence: Current_Additive_Period_Validation.txt and Validate_Original_Methods.R. Additive Period/RotationPeriod effects supersede the restored full-interaction settings below. All response-specific IQR rules retained.
 
 Current season ADG screening evidence: Season_ADG_IQR_Validation.txt and ADG checks in Validate_Table1_IQR.R / Validate_Original_Methods.R. Smooth_Period_ADG and Whole_Season_Smooth_ADG_kg_day now use 1.5-IQR.

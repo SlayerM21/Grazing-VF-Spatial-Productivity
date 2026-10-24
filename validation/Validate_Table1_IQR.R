@@ -58,9 +58,18 @@ cat('PASS: 0.5-IQR grazing/traveling exclusions differ from 1-IQR resting/DDT on
 for(response in c('Smooth_Period_ADG','Whole_Season_Smooth_ADG_kg_day')) {
  fixture<-tibble(value=c(0,1,2,3,4,5,6,10));names(fixture)<-response
  result<-afri_table1_iqr(fixture,response)
- stopifnot(all(result$audit$IQR_multiplier==1.5),!tail(result$audit$IQR_excluded,1))
+ stopifnot(all(result$audit$IQR_multiplier==0.5),tail(result$audit$IQR_excluded,1))
  fixture[[response]][8]<-100
  result<-afri_table1_iqr(fixture,response)
  stopifnot(tail(result$audit$IQR_excluded,1),nrow(result$data)==7)
 }
-cat('PASS: both season ADG responses retain values within 1.5-IQR and exclude beyond-fence extremes\n')
+cat('PASS: both season ADG responses retain values within 0.5-IQR and exclude beyond-fence extremes\n')
+
+# A value retained at 1-IQR must now be excluded for every gas/ADG alias.
+for(response in c('CH4_g_d','CO2_g_d','CH4_g_per_kg_LWG','CO2_Mean_g_d',
+ 'Smooth_Period_ADG','Whole_Season_Smooth_ADG_kg_day','RGP_Smooth_ADG_kg_day')) {
+ fixture<-data.frame(value=c(0,1,2,3,4,5,6,8));names(fixture)<-response
+ result<-afri_table1_iqr(fixture,response)
+ stopifnot(all(result$audit$IQR_multiplier==0.5),tail(result$audit$IQR_excluded,1))
+}
+cat('PASS: gas and ADG boundary fixtures use 0.5-IQR rather than 1-IQR\n')

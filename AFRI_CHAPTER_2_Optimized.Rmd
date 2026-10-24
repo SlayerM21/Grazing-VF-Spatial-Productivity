@@ -94,6 +94,51 @@ folders are left untouched. See the accompanying audit for files, ownership,
 model questions, changes to the reference integration, and validation limits.
 
 ```{r shared-runtime, include=FALSE}
+afri_iqr_screened_response <- function(response) {
+  grepl("CH4|CO2", response, ignore.case = TRUE) |
+    response %in% c("Grazing_h", "Resting_h", "Traveling_h", "mean_DDT_day",
+      "Smooth_Period_ADG", "Whole_Season_Smooth_ADG_kg_day", "RGP_Smooth_ADG_kg_day")
+}
+
+afri_table1_iqr <- function(data, response, dataset_key = "table1",
+  dataset = "Table1_Grazing_Behaviors", table = "TABLE 1") {
+  values <- as.numeric(data[[response]])
+  finite <- is.finite(values)
+  sufficient <- sum(finite) >= 4L
+  quartiles <- if (sufficient) stats::quantile(values[finite], c(0.25, 0.75),
+    na.rm = TRUE, type = 7, names = FALSE) else c(NA_real_, NA_real_)
+  spread <- diff(quartiles)
+  multiplier <- if (grepl("CH4|CO2", response, ignore.case = TRUE) ||
+    response %in% c("Grazing_h", "Traveling_h", "Smooth_Period_ADG",
+      "Whole_Season_Smooth_ADG_kg_day", "RGP_Smooth_ADG_kg_day")) 0.5 else 1
+  lower <- quartiles[1] - multiplier * spread
+  upper <- quartiles[2] + multiplier * spread
+  flag <- if (sufficient) finite & (values < lower | values > upper) else rep(FALSE, length(values))
+  ids <- intersect(c("Year", "Pasture", "TRT", "SR", "REAL_ID", "SEID"), names(data))
+  audit <- tibble::as_tibble(data[, ids, drop = FALSE])
+  audit$Dataset_key <- rep(dataset_key, nrow(audit))
+  audit$Dataset <- rep(dataset, nrow(audit))
+  audit$Table <- rep(table, nrow(audit))
+  audit$Response <- response
+  audit$Source_row <- seq_along(values)
+  audit$Value <- values
+  audit$Q1 <- quartiles[1]; audit$Q3 <- quartiles[2]
+  audit$IQR_multiplier <- multiplier
+  audit$IQR <- as.numeric(spread); audit$Lower_fence <- lower; audit$Upper_fence <- upper
+  audit$IQR_excluded <- flag
+  audit$Status <- ifelse(!finite, "Missing/nonfinite response; model complete-case rule applies",
+    ifelse(flag, paste0("Excluded: outside ", multiplier, " x IQR fences"), if (sufficient)
+      "Retained by IQR rule" else "Not screened: fewer than four finite values"))
+  list(data = data[!flag, , drop = FALSE], audit = audit)
+}
+
+# Source model audits are kept separate from canonical model audits.
+afri_source_iqr_audits <- list()
+afri_source_iqr_data <- function(data, response, model_id) {
+  screened <- afri_table1_iqr(data, response, "greenfeed_source", model_id, "GreenFeed source")
+  afri_source_iqr_audits[[model_id]] <<- screened$audit
+  screened$data
+}
 
 # Shared runtime: this code is embedded in the delivered R Markdown document.
 # Running this setup chunk in RStudio supplies YAML defaults without replacing
@@ -14462,11 +14507,11 @@ gf_rotation_models <- list(
   CH4_primary = afri_fit_lmm(
     CH4_g_d ~ TRT * SR + RotationPeriod + (1 | Year) +
       (1 | Year:Pasture),
-    ch4_rotation_model_data, "gf_global_period_CH4", REML = TRUE),
+    afri_source_iqr_data(ch4_rotation_model_data, "CH4_g_d", "gf_global_period_CH4"), "gf_global_period_CH4", REML = TRUE),
   CO2_primary = afri_fit_lmm(
     CO2_g_d ~ TRT * SR + RotationPeriod + (1 | Year) +
       (1 | Year:Pasture),
-    co2_rotation_model_data, "gf_global_period_CO2", REML = TRUE)
+    afri_source_iqr_data(co2_rotation_model_data, "CO2_g_d", "gf_global_period_CO2"), "gf_global_period_CO2", REML = TRUE)
 )
 ch4_rotation_year_random_model <- gf_rotation_models$CH4_primary
 co2_rotation_year_random_model <- gf_rotation_models$CO2_primary
@@ -15141,7 +15186,8 @@ if (nrow(gf_period_qualified)) {
       Steer_ID = factor(Steer_ID), TRT = factor(TRT), SR = factor(SR),
       Period = factor(RotationPeriod, levels = paste0("RGP", 1:5)))
   fit_gas <- function(response) {
-    d <- gf_model_data[is.finite(gf_model_data[[response]]), , drop = FALSE]
+    d <- afri_source_iqr_data(gf_model_data, response, paste0("qualified_RGP_", response))
+    d <- d[is.finite(d[[response]]), , drop = FALSE]
     if (nrow(d) < 30L || dplyr::n_distinct(d$Steer_ID) < 10L) {
       conditional_model_status[[paste0("qualified_RGP_", response)]] <<-
         tibble::tibble(model_id = paste0("qualified_RGP_", response),
@@ -21927,36 +21973,6 @@ afri_fit_period_model <- function(
 ```{r canonical-fit-functions, message=FALSE, warning=FALSE}
 # Screen each Table 1 response independently, across animal-year season means.
 # Reporting copies and fitted subsets change; original source datasets do not.
-afri_table1_iqr <- function(data, response, dataset_key = "table1",
-  dataset = "Table1_Grazing_Behaviors", table = "TABLE 1") {
-  values <- as.numeric(data[[response]])
-  finite <- is.finite(values)
-  sufficient <- sum(finite) >= 4L
-  quartiles <- if (sufficient) stats::quantile(values[finite], c(0.25, 0.75),
-    na.rm = TRUE, type = 7, names = FALSE) else c(NA_real_, NA_real_)
-  spread <- diff(quartiles)
-  multiplier <- if (response %in% c("Grazing_h", "Traveling_h")) 0.5 else
-    if (response %in% c("Smooth_Period_ADG", "Whole_Season_Smooth_ADG_kg_day")) 1.5 else 1
-  lower <- quartiles[1] - multiplier * spread
-  upper <- quartiles[2] + multiplier * spread
-  flag <- if (sufficient) finite & (values < lower | values > upper) else rep(FALSE, length(values))
-  ids <- intersect(c("Year", "Pasture", "TRT", "SR", "REAL_ID", "SEID"), names(data))
-  audit <- tibble::as_tibble(data[, ids, drop = FALSE])
-  audit$Dataset_key <- rep(dataset_key, nrow(audit))
-  audit$Dataset <- rep(dataset, nrow(audit))
-  audit$Table <- rep(table, nrow(audit))
-  audit$Response <- response
-  audit$Source_row <- seq_along(values)
-  audit$Value <- values
-  audit$Q1 <- quartiles[1]; audit$Q3 <- quartiles[2]
-  audit$IQR_multiplier <- multiplier
-  audit$IQR <- as.numeric(spread); audit$Lower_fence <- lower; audit$Upper_fence <- upper
-  audit$IQR_excluded <- flag
-  audit$Status <- ifelse(!finite, "Missing/nonfinite response; model complete-case rule applies",
-    ifelse(flag, paste0("Excluded: outside ", multiplier, " x IQR fences"), if (sufficient)
-      "Retained by IQR rule" else "Not screened: fewer than four finite values"))
-  list(data = data[!flag, , drop = FALSE], audit = audit)
-}
 
 afri_fit_one_response <- function(spec_row) {
   dataset_key <- spec_row$Dataset_key[[1]]
@@ -21975,7 +21991,7 @@ afri_fit_one_response <- function(spec_row) {
     stop(dataset_label, " does not contain response ", response)
   }
 
-  if (dataset_key == "table1" || response %in% c("RGP_Smooth_ADG_kg_day", "RGP_CH4_g_day", "RGP_CO2_g_day", "Smooth_Period_ADG", "Whole_Season_Smooth_ADG_kg_day"))
+  if (afri_iqr_screened_response(response))
     raw_data <- afri_table1_iqr(raw_data, response, dataset_key, dataset_label, spec_row$Table[[1]])$data
 
   d <- afri_prepare_model_data(
@@ -22030,11 +22046,12 @@ afri_fit_one_response <- function(spec_row) {
   fit$subject <- subject
   fit$family_rule <- family_rule
   fit$family_resolution_note <- family_resolution$note
-  if (dataset_key == "table1" || response %in% c("RGP_Smooth_ADG_kg_day", "RGP_CH4_g_day", "RGP_CO2_g_day", "Smooth_Period_ADG", "Whole_Season_Smooth_ADG_kg_day")) fit$family_resolution_note <- paste(
+  if (afri_iqr_screened_response(response)) fit$family_resolution_note <- paste(
     fit$family_resolution_note,
-    paste0("Response-specific ", if (response %in% c("Grazing_h", "Traveling_h")) 0.5 else
-    if (response %in% c("Smooth_Period_ADG", "Whole_Season_Smooth_ADG_kg_day")) 1.5 else 1,
-      " x IQR exclusion applied before fitting (animal-year season records for Table 1 and season ADG; animal-period records for RGP ADG/CH4/CO2); see Response_IQR sheets."))
+    paste0("Response-specific ", if (grepl("CH4|CO2", response, ignore.case = TRUE) ||
+    response %in% c("Grazing_h", "Traveling_h", "Smooth_Period_ADG",
+      "Whole_Season_Smooth_ADG_kg_day", "RGP_Smooth_ADG_kg_day")) 0.5 else 1,
+      " x IQR exclusion applied before fitting (finite response values within this analysis dataset); see Response_IQR sheets."))
   fit$data <- d
   fit$distribution_audit <- distribution_audit
   fit$repeated_structure <- paste("Final fitted formula:", fit$formula)
@@ -22090,7 +22107,7 @@ canonical_table1_iqr_summary <- canonical_table1_iqr_audit |>
 # Combined audit also covers the requested period ADG and gas responses.
 canonical_response_iqr_audit <- dplyr::bind_rows(lapply(seq_len(nrow(canonical_specs)), function(i) {
   spec <- canonical_specs[i, , drop = FALSE]
-  if (spec$Dataset_key != "table1" && !spec$Response %in% c("RGP_Smooth_ADG_kg_day", "RGP_CH4_g_day", "RGP_CO2_g_day", "Smooth_Period_ADG", "Whole_Season_Smooth_ADG_kg_day")) return(NULL)
+  if (!afri_iqr_screened_response(spec$Response)) return(NULL)
   audit <- afri_table1_iqr(canonical_datasets[[spec$Dataset_key]],
     spec$Response, spec$Dataset_key, spec$Dataset, spec$Table)$audit
   for (key in intersect(c("Year", "Pasture", "TRT", "SR", "REAL_ID", "SEID"), names(audit)))
@@ -24696,6 +24713,10 @@ if (exists("canonical_response_iqr_audit")) {
   professional_tables_excel$Response_IQR_Excluded <- dplyr::filter(canonical_response_iqr_audit, IQR_excluded)
 }
 professional_tables_excel <- lapply(professional_tables_excel, publication_active_rows)
+if (exists("afri_source_iqr_audits") && length(afri_source_iqr_audits)) {
+  professional_tables_excel$Source_Gas_IQR_Audit <- dplyr::bind_rows(lapply(
+    afri_source_iqr_audits, afri_diagnostic_reporting_rows))
+}
 professional_export_catalog <- tibble::tibble(
   Worksheet = names(professional_tables_excel),
   Rows = vapply(professional_tables_excel, nrow, integer(1)),

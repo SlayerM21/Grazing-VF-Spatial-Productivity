@@ -1,0 +1,6 @@
+PASS: publication labels map ADG (kg/day) to Smooth_Period_ADG and Whole-season ADG (kg/day) to Whole_Season_Smooth_ADG_kg_day.
+PASS: exact 1.5-IQR fences retain within-fence values and exclude extremes independently.
+PASS: both fitted response subsets equal screened original values.
+PASS: complete per-response audit includes IQR_multiplier=1.5.
+PASS: existing screening, model structures, Excel, raw TXT and distribution plots.
+Validation uses synthetic data; study inputs unavailable.

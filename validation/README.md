@@ -1,3 +1,5 @@
+Current season ADG screening evidence: Season_ADG_IQR_Validation.txt and ADG checks in Validate_Table1_IQR.R / Validate_Original_Methods.R. Smooth_Period_ADG and Whole_Season_Smooth_ADG_kg_day now use 1.5-IQR.
+
 Current restored full-interaction evidence: Restored_Full_Interactions_Validation.txt and Validate_Original_Methods.R. Period and RotationPeriod interactions restored; chunk output remains inline. This supersedes additive-period evidence below.
 
 Current additive-period model and inline-output evidence: Additive_Period_Inline_Validation.txt and Validate_Original_Methods.R. This supersedes earlier full-period-interaction evidence.

@@ -54,3 +54,13 @@ for(response in responses){
  stopifnot(tail(result$audit$IQR_excluded,1)==(response %in% c('Grazing_h','Traveling_h')))
 }
 cat('PASS: 0.5-IQR grazing/traveling exclusions differ from 1-IQR resting/DDT on boundary fixture\n')
+
+for(response in c('Smooth_Period_ADG','Whole_Season_Smooth_ADG_kg_day')) {
+ fixture<-tibble(value=c(0,1,2,3,4,5,6,10));names(fixture)<-response
+ result<-afri_table1_iqr(fixture,response)
+ stopifnot(all(result$audit$IQR_multiplier==1.5),!tail(result$audit$IQR_excluded,1))
+ fixture[[response]][8]<-100
+ result<-afri_table1_iqr(fixture,response)
+ stopifnot(tail(result$audit$IQR_excluded,1),nrow(result$data)==7)
+}
+cat('PASS: both season ADG responses retain values within 1.5-IQR and exclude beyond-fence extremes\n')

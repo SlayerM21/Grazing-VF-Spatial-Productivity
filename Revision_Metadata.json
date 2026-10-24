@@ -2,9 +2,9 @@
   "source_file": "AFRI_CHAPTER_2_Master_Code_Year_Random.Rmd",
   "source_sha256": "80d420e290269268841b0348a8c53a2c1292d96461e54e08763a8161681f11cf",
   "revised_file": "AFRI_CHAPTER_2_Optimized.Rmd",
-  "revised_sha256": "c3b061a958057de93613670248202e2f9c305235d59f335576a3ad4de2a26d59",
+  "revised_sha256": "238019343dacbd1142f6382d251cc55be2878cd4b08059db1f9d4faf1a9ff693",
   "source_lines": 33602,
-  "revised_lines": 25001,
+  "revised_lines": 25003,
   "audit_rows": 191,
   "response_specifications": 44,
   "study_execution": "Not run: original HMM, BW, GreenFeed and GIS inputs unavailable",
@@ -323,7 +323,7 @@
       "Traveling_h",
       "mean_DDT_day"
     ],
-    "rule": "Below Q1 - k*IQR or above Q3 + k*IQR; k=0.5 for Grazing_h/Traveling_h, k=1 otherwise; R type-7 finite-value quartiles",
+    "rule": "Below Q1-k*IQR or above Q3+k*IQR; k=0.5 for Grazing_h/Traveling_h; k=1.5 for Smooth_Period_ADG/Whole_Season_Smooth_ADG_kg_day; k=1 for other screened responses. R type-7 finite-value quartiles.",
     "source_preservation": "Original canonical source data unchanged; response-specific fit subsets",
     "workbook_sheets": [
       "Table1_IQR_Summary",
@@ -342,7 +342,9 @@
       "mean_DDT_day": 1,
       "RGP_Smooth_ADG_kg_day": 1,
       "RGP_CH4_g_day": 1,
-      "RGP_CO2_g_day": 1
+      "RGP_CO2_g_day": 1,
+      "Smooth_Period_ADG": 1.5,
+      "Whole_Season_Smooth_ADG_kg_day": 1.5
     },
     "responses": [
       "Grazing_h",
@@ -351,7 +353,9 @@
       "mean_DDT_day",
       "RGP_Smooth_ADG_kg_day",
       "RGP_CH4_g_day",
-      "RGP_CO2_g_day"
+      "RGP_CO2_g_day",
+      "Smooth_Period_ADG",
+      "Whole_Season_Smooth_ADG_kg_day"
     ],
     "plots": "Histograms and normal QQ plots of original analysis input and fitted data for every canonical response; PNGs and CSV inventory in 03_Figures/Response_Distributions",
     "audit": "Response_IQR_Summary, Response_IQR_Audit, Response_IQR_Excluded"

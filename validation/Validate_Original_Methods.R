@@ -38,7 +38,7 @@ for(key in unique(canonical_specs$Dataset_key)){
 # Preserve within-year repeated animal identifiers for the animal-period fixture.
 canonical_datasets$shrunk_period$SEID<-paste(canonical_datasets$shrunk_period$Year,canonical_datasets$shrunk_period$Pasture)
 canonical_datasets$shrunk_period$REAL_ID<-canonical_datasets$shrunk_period$SEID
-selected<-filter(canonical_specs,Response %in% c('Grazing_h','Resting_h','Traveling_h','mean_DDT_day','CH4_Mean_g_d','active_ha_whole_season','active_ha_all_pasture','CH4_g_per_active_ha_all_pasture','CH4_g_per_active_ha_inside_rgp','LWG_kg_per_active_ha_all_pasture','RGP_CH4_g_day','RGP_CO2_g_day','RGP_Smooth_ADG_kg_day'))
+selected<-filter(canonical_specs,Response %in% c('Grazing_h','Resting_h','Traveling_h','mean_DDT_day','CH4_Mean_g_d','active_ha_whole_season','active_ha_all_pasture','CH4_g_per_active_ha_all_pasture','CH4_g_per_active_ha_inside_rgp','LWG_kg_per_active_ha_all_pasture','RGP_CH4_g_day','RGP_CO2_g_day','RGP_Smooth_ADG_kg_day','Smooth_Period_ADG','Whole_Season_Smooth_ADG_kg_day'))
 canonical_specs<-selected
 canonical_fits<-list()
 for(i in seq_len(nrow(selected))){
@@ -184,3 +184,13 @@ for(response in c('RGP_CH4_g_day','RGP_CO2_g_day')) {
    sum(audit$IQR_excluded)==nrow(audit)-nrow(expected))
 }
 cat('PASS: both RGP gas models use exact response-specific 1-IQR subsets and complete exclusion audits\n')
+
+for(response in c('Smooth_Period_ADG','Whole_Season_Smooth_ADG_kg_day')) {
+ spec<-selected %>% filter(Response==response)
+ fit<-canonical_fits[[afri_model_id(spec$Dataset_key,response)]]
+ expected<-afri_table1_iqr(canonical_datasets[[spec$Dataset_key]],response)$data
+ stopifnot(identical(as.numeric(fit$data[[response]]),as.numeric(expected[[response]])))
+ audit<-canonical_response_iqr_audit %>% filter(Response==response)
+ stopifnot(all(audit$IQR_multiplier==1.5),nrow(audit)==nrow(canonical_datasets[[spec$Dataset_key]]))
+}
+cat('PASS: both season ADG models use response-specific 1.5-IQR subsets and complete audits\n')

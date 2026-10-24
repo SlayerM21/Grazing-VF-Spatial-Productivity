@@ -2,14 +2,14 @@
   "source_file": "AFRI_CHAPTER_2_Master_Code_Year_Random.Rmd",
   "source_sha256": "80d420e290269268841b0348a8c53a2c1292d96461e54e08763a8161681f11cf",
   "revised_file": "AFRI_CHAPTER_2_Optimized.Rmd",
-  "revised_sha256": "238019343dacbd1142f6382d251cc55be2878cd4b08059db1f9d4faf1a9ff693",
+  "revised_sha256": "c2f2396645d13981c2065d504cba4a16261f8ee0e34b021ab75eae6f2f266b67",
   "source_lines": 33602,
-  "revised_lines": 25003,
+  "revised_lines": 24998,
   "audit_rows": 191,
   "response_specifications": 44,
   "study_execution": "Not run: original HMM, BW, GreenFeed and GIS inputs unavailable",
   "r_chunks_parsed": 217,
-  "requested_model_structure": "Season: TRT*SR+(1|Year); period: TRT*SR*Period+(1|Year)+(1|Year:Pasture); GreenFeed: TRT*SR*RotationPeriod+(1|Year)+(1|Year:Pasture)",
+  "requested_model_structure": "Season: TRT*SR+(1|Year); period: TRT*SR+Period+(1|Year)+(1|Year:Pasture); GreenFeed: TRT*SR+RotationPeriod+(1|Year)+(1|Year:Pasture)",
   "global_greenfeed_name": "Global GreenFeed",
   "global_greenfeed_models": 2,
   "complete_model_catalog_entries": 56,
@@ -361,5 +361,5 @@
     "audit": "Response_IQR_Summary, Response_IQR_Audit, Response_IQR_Excluded"
   },
   "chunk_output_type": "inline",
-  "period_fixed_effects": "TRT*SR*Period (TRT*SR*RotationPeriod for GreenFeed); all two-way and three-way interactions restored"
+  "period_fixed_effects": "TRT*SR+Period (TRT*SR+RotationPeriod for GreenFeed); no period interactions"
 }

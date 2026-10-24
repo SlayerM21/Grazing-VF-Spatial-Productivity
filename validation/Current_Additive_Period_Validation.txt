@@ -1,0 +1,5 @@
+PASS: all chunks parse; representative period fits have TRT, SR, TRT:SR and Period only with Year and Year:Pasture intercepts.
+PASS: period interaction omnibus/reporting columns removed.
+PASS: all response-specific IQR, model family, Excel, TXT and distribution export checks, including both 1.5-IQR season ADG responses.
+Source GreenFeed formulas use TRT*SR+RotationPeriod. Inline output retained.
+Synthetic study fixtures only; full study inputs unavailable.
